@@ -1,0 +1,36 @@
+{
+  "name": "mcp-git-intel",
+  "version": "1.0.0",
+  "description": "Git Intelligence MCP Server — deep repository analytics from commit history",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mcp-git-intel": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "cli": "tsx src/cli.ts",
+    "smoke": "tsx src/smoke-test.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["mcp", "git", "analytics", "code-intelligence", "model-context-protocol"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
