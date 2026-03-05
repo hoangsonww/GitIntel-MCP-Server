@@ -7,7 +7,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const sidebar = document.querySelector('.sidebar');
   const toggle = document.querySelector('.sidebar-toggle');
   if (toggle && sidebar) {
-    toggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+    toggle.addEventListener('click', () => {
+      const isOpen = sidebar.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', String(isOpen));
+    });
     document.addEventListener('click', (e) => {
       if (
         sidebar.classList.contains('open') &&
@@ -15,7 +18,62 @@ document.addEventListener('DOMContentLoaded', () => {
         !toggle.contains(e.target)
       ) {
         sidebar.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
       }
+    });
+  }
+
+  /* ---------- Sidebar TOC search ---------- */
+  const tocSearch = document.querySelector('#toc-search');
+  const tocNav = document.querySelector('.sidebar nav');
+  if (tocSearch && tocNav) {
+    const normalize = (value) => value.toLowerCase().trim();
+    const topLinks = Array.from(tocNav.querySelectorAll(':scope > .nav-link'));
+    const groups = Array.from(tocNav.querySelectorAll(':scope > .nav-group')).map((group) => ({
+      group,
+      title: group.querySelector('.nav-group-title'),
+      links: Array.from(group.querySelectorAll('.nav-link')),
+    }));
+
+    tocSearch.addEventListener('input', () => {
+      const query = normalize(tocSearch.value);
+
+      if (!query) {
+        topLinks.forEach((link) => link.classList.remove('toc-filter-hidden'));
+        groups.forEach(({ group, title, links }) => {
+          group.classList.remove('toc-filter-hidden');
+          title?.classList.remove('toc-filter-hidden');
+          links.forEach((link) => link.classList.remove('toc-filter-hidden'));
+        });
+        return;
+      }
+
+      topLinks.forEach((link) => {
+        const isMatch = normalize(link.textContent || '').includes(query);
+        link.classList.toggle('toc-filter-hidden', !isMatch);
+      });
+
+      groups.forEach(({ group, title, links }) => {
+        const titleMatch = normalize(title?.textContent || '').includes(query);
+
+        if (titleMatch) {
+          links.forEach((link) => link.classList.remove('toc-filter-hidden'));
+          group.classList.remove('toc-filter-hidden');
+          title?.classList.remove('toc-filter-hidden');
+          return;
+        }
+
+        let visibleCount = 0;
+        links.forEach((link) => {
+          const isMatch = normalize(link.textContent || '').includes(query);
+          link.classList.toggle('toc-filter-hidden', !isMatch);
+          if (isMatch) visibleCount += 1;
+        });
+
+        const hideGroup = visibleCount === 0;
+        group.classList.toggle('toc-filter-hidden', hideGroup);
+        title?.classList.toggle('toc-filter-hidden', hideGroup);
+      });
     });
   }
 
