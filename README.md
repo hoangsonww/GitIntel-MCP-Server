@@ -9,7 +9,7 @@
 ![ESM](https://img.shields.io/badge/ESM-ES2022-F7DF1E?logo=javascript&logoColor=black)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-Git Intelligence MCP Server -- deep repository analytics computed locally from your commit history.
+Git Intelligence MCP Server - deep repository analytics computed locally from your commit history.
 
 Surfaces the same insights that tools like CodeScene and GitPrime charge for: hotspots, temporal coupling, knowledge maps, churn analysis, complexity trends, risk scoring, and more. Everything runs locally. No external APIs, no data leaves your machine.
 
