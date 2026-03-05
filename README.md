@@ -13,7 +13,7 @@ Git Intelligence MCP Server - deep repository analytics computed locally from yo
 
 Surfaces the same insights that tools like CodeScene and GitPrime charge for: hotspots, temporal coupling, knowledge maps, churn analysis, complexity trends, risk scoring, and more. Everything runs locally. No external APIs, no data leaves your machine.
 
-This is a **locally-built MCP server**. It is not published to npm. You clone, build, and register it with your MCP client (Claude Code, Codex, etc.).
+This is a **locally-built MCP server**. It is not published to npm. You clone, build, and register it with your MCP client & AI agents (Claude Code, Codex, etc.).
 
 ```
 You:    "Analyze this repo -- show me hotspots, risk, and who knows the auth module best."
