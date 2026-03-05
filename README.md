@@ -1,4 +1,13 @@
-# mcp-git-intel
+# GitIntel - A Git Intelligence MCP Server for AI Agents
+
+![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)
+![MCP SDK](https://img.shields.io/badge/MCP_SDK-1.27-blueviolet)
+![Zod](https://img.shields.io/badge/Zod-3.24-3E67B1?logo=zod&logoColor=white)
+![Vitest](https://img.shields.io/badge/Vitest-3.0-6E9F18?logo=vitest&logoColor=white)
+![Git](https://img.shields.io/badge/Git-%3E%3D2.20-F05032?logo=git&logoColor=white)
+![ESM](https://img.shields.io/badge/ESM-ES2022-F7DF1E?logo=javascript&logoColor=black)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 Git Intelligence MCP Server -- deep repository analytics computed locally from your commit history.
 
