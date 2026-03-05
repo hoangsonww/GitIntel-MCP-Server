@@ -127,7 +127,13 @@
   </head>
   <body>
     <!-- Mobile sidebar toggle -->
-    <button class="sidebar-toggle" aria-label="Toggle navigation">&#9776;</button>
+    <button class="sidebar-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false">
+      <span class="sidebar-toggle-icon" aria-hidden="true">
+        <span class="sidebar-toggle-line"></span>
+        <span class="sidebar-toggle-line"></span>
+        <span class="sidebar-toggle-line"></span>
+      </span>
+    </button>
 
     <div class="page-wrapper">
       <!-- ==================== SIDEBAR ==================== -->
@@ -138,6 +144,17 @@
         </div>
 
         <nav>
+          <div class="toc-search-wrap">
+            <input
+              id="toc-search"
+              class="toc-search-input"
+              type="search"
+              placeholder="Search sections..."
+              aria-label="Search table of contents"
+              autocomplete="off"
+            />
+          </div>
+
           <a href="#overview" class="nav-link">Overview</a>
 
           <div class="nav-group">
