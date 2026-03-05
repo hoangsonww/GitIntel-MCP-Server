@@ -15,6 +15,45 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="wiki/styles.css" />
+    <style>
+      @media (prefers-reduced-motion: no-preference) {
+        .js-scroll-reveal .scroll-reveal {
+          opacity: 0;
+          transform: translateY(8px);
+          transition:
+            opacity 0.45s ease,
+            transform 0.45s ease;
+          will-change: opacity, transform;
+        }
+
+        .js-scroll-reveal .scroll-reveal.is-visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        #what-it-does .feature-item {
+          opacity: 0;
+          transform: translateY(6px);
+          transition:
+            opacity 0.35s ease,
+            transform 0.35s ease;
+          will-change: opacity, transform;
+        }
+
+        #what-it-does .feature-item.is-card-visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .scroll-reveal {
+          opacity: 1 !important;
+          transform: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
     <script type="module">
       import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
       mermaid.initialize({
@@ -191,7 +230,7 @@
             >. Everything runs locally against your <code>.git</code> directory.
           </p>
 
-          <div class="feature-grid stagger">
+          <div class="feature-grid">
             <div class="feature-item">
               <div class="fi-icon">&#128293;</div>
               <h5>Change Hotspots</h5>
@@ -1481,5 +1520,82 @@ src/
     <button class="scroll-top" aria-label="Scroll to top">&#8593;</button>
 
     <script src="wiki/scripts.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+        const isInViewport = (el) => {
+          const rect = el.getBoundingClientRect();
+          return rect.top < window.innerHeight * 0.92 && rect.bottom > 0;
+        };
+
+        const featureCards = Array.from(document.querySelectorAll('#what-it-does .feature-item'));
+        if (featureCards.length > 0) {
+          const cardObserver = new IntersectionObserver(
+            (entries, obs) => {
+              entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                  entry.target.classList.add('is-card-visible');
+                  obs.unobserve(entry.target);
+                }
+              });
+            },
+            { threshold: 0.18, rootMargin: '0px 0px -8% 0px' },
+          );
+
+          featureCards.forEach((card, index) => {
+            card.style.transitionDelay = `${Math.min(index * 35, 245)}ms`;
+
+            if (isInViewport(card)) {
+              card.classList.add('is-card-visible');
+              return;
+            }
+
+            cardObserver.observe(card);
+          });
+        }
+
+        const revealTargets = Array.from(
+          document.querySelectorAll('.sidebar *, .main-content *'),
+        ).filter((el) => {
+          if (['SCRIPT', 'STYLE', 'LINK', 'META', 'BR', 'HR', 'SVG', 'PATH'].includes(el.tagName)) {
+            return false;
+          }
+          if (el.closest('.mermaid')) return false;
+          if (el.closest('.stagger')) return false;
+          if (el.closest('#what-it-does .feature-item')) return false;
+          if (el.closest('.sidebar-toggle') || el.classList.contains('scroll-top')) return false;
+          return true;
+        });
+
+        if (revealTargets.length === 0) return;
+
+        document.body.classList.add('js-scroll-reveal');
+
+        const observer = new IntersectionObserver(
+          (entries, obs) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+                obs.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.12, rootMargin: '0px 0px -6% 0px' },
+        );
+
+        revealTargets.forEach((el, index) => {
+          el.classList.add('scroll-reveal');
+          el.style.transitionDelay = `${Math.min((index % 10) * 25, 225)}ms`;
+
+          if (isInViewport(el)) {
+            el.classList.add('is-visible');
+            return;
+          }
+
+          observer.observe(el);
+        });
+      });
+    </script>
   </body>
 </html>
