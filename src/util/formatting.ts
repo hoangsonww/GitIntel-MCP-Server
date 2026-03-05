@@ -41,9 +41,7 @@ export function formatTable(
 ): string {
   if (rows.length === 0) return '(no data)';
 
-  const widths = headers.map((h, i) =>
-    Math.max(h.length, ...rows.map((r) => (r[i] ?? '').length)),
-  );
+  const widths = headers.map((h, i) => Math.max(h.length, ...rows.map((r) => (r[i] ?? '').length)));
 
   const alignRight = options?.alignRight ?? new Set<number>();
 
@@ -54,9 +52,7 @@ export function formatTable(
 
   const headerLine = headers.map((h, i) => pad(h, i)).join('  ');
   const separator = widths.map((w) => '-'.repeat(w)).join('  ');
-  const dataLines = rows.map((r) =>
-    r.map((cell, i) => pad(cell, i)).join('  '),
-  );
+  const dataLines = rows.map((r) => r.map((cell, i) => pad(cell, i)).join('  '));
 
   return [headerLine, separator, ...dataLines].join('\n');
 }

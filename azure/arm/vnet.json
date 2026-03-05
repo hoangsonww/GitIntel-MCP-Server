@@ -1,0 +1,142 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "type": "string",
+      "defaultValue": "prod",
+      "allowedValues": ["dev", "staging", "prod"]
+    },
+    "vnetAddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.1.0.0/16"
+    },
+    "aksSubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.1.0.0/20"
+    },
+    "servicesSubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.1.16.0/24"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    }
+  },
+  "variables": {
+    "vnetName": "[concat('gitintel-', parameters('environment'), '-vnet')]",
+    "aksSubnetName": "aks-subnet",
+    "servicesSubnetName": "services-subnet",
+    "nsgName": "[concat('gitintel-', parameters('environment'), '-nsg')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('nsgName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "DenyAllInbound",
+            "properties": {
+              "priority": 4096,
+              "direction": "Inbound",
+              "access": "Deny",
+              "protocol": "*",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "*"
+            }
+          },
+          {
+            "name": "AllowVnetInbound",
+            "properties": {
+              "priority": 100,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "*",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "VirtualNetwork",
+              "destinationPortRange": "*"
+            }
+          },
+          {
+            "name": "AllowAzureLoadBalancer",
+            "properties": {
+              "priority": 200,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "*",
+              "sourceAddressPrefix": "AzureLoadBalancer",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "*"
+            }
+          }
+        ]
+      },
+      "tags": {
+        "project": "mcp-git-intel",
+        "environment": "[parameters('environment')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('vnetName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": ["[parameters('vnetAddressPrefix')]"]
+        },
+        "subnets": [
+          {
+            "name": "[variables('aksSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('aksSubnetPrefix')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+              },
+              "privateEndpointNetworkPolicies": "Enabled"
+            }
+          },
+          {
+            "name": "[variables('servicesSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('servicesSubnetPrefix')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+              },
+              "privateEndpointNetworkPolicies": "Enabled"
+            }
+          }
+        ]
+      },
+      "tags": {
+        "project": "mcp-git-intel",
+        "environment": "[parameters('environment')]"
+      }
+    }
+  ],
+  "outputs": {
+    "vnetId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+    },
+    "aksSubnetId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('aksSubnetName'))]"
+    },
+    "servicesSubnetId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('servicesSubnetName'))]"
+    }
+  }
+}

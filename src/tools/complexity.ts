@@ -10,7 +10,7 @@ interface ComplexitySnapshot {
   lines: number;
   maxIndent: number;
   avgIndent: number;
-  longLines: number;     // lines > 120 chars
+  longLines: number; // lines > 120 chars
   functionCount: number;
 }
 
@@ -20,11 +20,17 @@ export function registerComplexityTrend(server: McpServer, repoRoot: string) {
     {
       title: 'Complexity Trend',
       description:
-        'Track how a file\'s complexity has changed over time by sampling its state at regular intervals in git history. ' +
+        "Track how a file's complexity has changed over time by sampling its state at regular intervals in git history. " +
         'Identifies files growing out of control, complexity spikes from specific commits, and files that need splitting.',
       inputSchema: z.object({
         path: z.string().describe('File path to analyze (relative to repo root)'),
-        samples: z.number().int().min(3).max(30).default(10).describe('Number of time samples (default: 10, max: 30)'),
+        samples: z
+          .number()
+          .int()
+          .min(3)
+          .max(30)
+          .default(10)
+          .describe('Number of time samples (default: 10, max: 30)'),
         days: z.number().int().positive().default(180).describe('Days to look back (default: 180)'),
       }),
       annotations: {
@@ -68,10 +74,9 @@ export function registerComplexityTrend(server: McpServer, repoRoot: string) {
         // Analyze each snapshot
         const snapshots: ComplexitySnapshot[] = [];
         for (const { hash, date } of sampled) {
-          const { stdout: fileContent } = await gitExec(
-            ['show', `${hash}:${cleanPath}`],
-            { cwd: repoRoot },
-          );
+          const { stdout: fileContent } = await gitExec(['show', `${hash}:${cleanPath}`], {
+            cwd: repoRoot,
+          });
 
           if (!fileContent) continue;
 
@@ -86,7 +91,7 @@ export function registerComplexityTrend(server: McpServer, repoRoot: string) {
             // Normalize tabs to 4 spaces
             const indent = Math.floor(
               (line.match(/^\t*/)?.[0].length ?? 0) * 4 +
-              (leadingSpaces - (line.match(/^\t*/)?.[0].length ?? 0)),
+                (leadingSpaces - (line.match(/^\t*/)?.[0].length ?? 0)),
             );
             const indentLevel = Math.floor(indent / 2);
             totalIndent += indentLevel;
@@ -94,7 +99,8 @@ export function registerComplexityTrend(server: McpServer, repoRoot: string) {
           }
 
           // Count function-like patterns (language-agnostic heuristic)
-          const functionPatterns = /\b(function|def|fn|func|pub\s+fn|async\s+fn|async\s+function|export\s+function|export\s+async\s+function|const\s+\w+\s*=\s*(?:async\s*)?\(|(?:get|set)\s+\w+\s*\()\b/g;
+          const functionPatterns =
+            /\b(function|def|fn|func|pub\s+fn|async\s+fn|async\s+function|export\s+function|export\s+async\s+function|const\s+\w+\s*=\s*(?:async\s*)?\(|(?:get|set)\s+\w+\s*\()\b/g;
           const functionCount = (fileContent.match(functionPatterns) || []).length;
 
           snapshots.push({
@@ -102,7 +108,8 @@ export function registerComplexityTrend(server: McpServer, repoRoot: string) {
             date: date.slice(0, 10),
             lines: nonEmpty.length,
             maxIndent,
-            avgIndent: nonEmpty.length > 0 ? Math.round((totalIndent / nonEmpty.length) * 10) / 10 : 0,
+            avgIndent:
+              nonEmpty.length > 0 ? Math.round((totalIndent / nonEmpty.length) * 10) / 10 : 0,
             longLines: lines.filter((l) => l.length > 120).length,
             functionCount,
           });
@@ -122,7 +129,15 @@ export function registerComplexityTrend(server: McpServer, repoRoot: string) {
         const trend = (delta: number) =>
           delta > 0 ? `↑ +${delta}` : delta < 0 ? `↓ ${delta}` : '→ 0';
 
-        const headers = ['Date', 'Commit', 'Lines', 'Max Depth', 'Avg Depth', 'Long Lines', 'Functions'];
+        const headers = [
+          'Date',
+          'Commit',
+          'Lines',
+          'Max Depth',
+          'Avg Depth',
+          'Long Lines',
+          'Functions',
+        ];
         const rows = snapshots.map((s) => [
           s.date,
           s.hash,
@@ -144,16 +159,24 @@ export function registerComplexityTrend(server: McpServer, repoRoot: string) {
 
         // Add warnings
         if (last.lines > 300) {
-          summary.push(`\n⚠️ **Large file** (${last.lines} lines): Consider splitting into smaller modules.`);
+          summary.push(
+            `\n⚠️ **Large file** (${last.lines} lines): Consider splitting into smaller modules.`,
+          );
         }
         if (last.maxIndent > 6) {
-          summary.push(`\n⚠️ **Deep nesting** (max depth ${last.maxIndent}): Consider extracting nested logic into helper functions.`);
+          summary.push(
+            `\n⚠️ **Deep nesting** (max depth ${last.maxIndent}): Consider extracting nested logic into helper functions.`,
+          );
         }
         if (linesDelta > 100) {
-          summary.push(`\n⚠️ **Rapid growth** (+${linesDelta} lines): This file may be accumulating too many responsibilities.`);
+          summary.push(
+            `\n⚠️ **Rapid growth** (+${linesDelta} lines): This file may be accumulating too many responsibilities.`,
+          );
         }
         if (last.functionCount > 15) {
-          summary.push(`\n⚠️ **Many functions** (${last.functionCount}): Consider splitting into separate modules by concern.`);
+          summary.push(
+            `\n⚠️ **Many functions** (${last.functionCount}): Consider splitting into separate modules by concern.`,
+          );
         }
 
         return textResult(summary.join('\n'));

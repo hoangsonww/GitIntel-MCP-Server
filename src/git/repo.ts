@@ -21,10 +21,7 @@ export async function resolveRepoRoot(repoPath: string): Promise<string> {
   }
 
   // Use git to find the repo root (handles worktrees, subdirs, etc.)
-  const { stdout, stderr } = await gitExec(
-    ['rev-parse', '--show-toplevel'],
-    { cwd: resolved },
-  );
+  const { stdout, stderr } = await gitExec(['rev-parse', '--show-toplevel'], { cwd: resolved });
 
   const root = stdout.trim();
   if (!root) {
@@ -51,9 +48,7 @@ export async function checkGitVersion(
   const version = `${match[1]}.${match[2]}.${match[3]}`;
 
   if (major < 2 || (major === 2 && minor < 20)) {
-    throw new RepoError(
-      `Git >= 2.20 required, found ${version}`,
-    );
+    throw new RepoError(`Git >= 2.20 required, found ${version}`);
   }
 
   return { version, major, minor };

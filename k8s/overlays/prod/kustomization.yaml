@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: mcp-git-intel
+
+resources:
+  - ../../base
+
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: mcp-git-intel
+      spec:
+        replicas: 3
+        template:
+          spec:
+            containers:
+              - name: mcp-git-intel
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 256Mi
+                  limits:
+                    cpu: "2"
+                    memory: 1Gi
+  - patch: |-
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: mcp-git-intel
+      spec:
+        minReplicas: 3
+        maxReplicas: 10
+  - patch: |-
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: mcp-git-intel
+      spec:
+        minAvailable: 2
+
+commonLabels:
+  environment: prod

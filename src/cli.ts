@@ -108,7 +108,7 @@ async function main() {
             const inputProps = tool.inputSchema?.properties
               ? Object.keys(tool.inputSchema.properties as Record<string, unknown>).join(', ')
               : 'none';
-            console.log(`  ${(tool.name).padEnd(22)} ${tool.description?.slice(0, 80) ?? ''}`);
+            console.log(`  ${tool.name.padEnd(22)} ${tool.description?.slice(0, 80) ?? ''}`);
             console.log(`  ${''.padEnd(22)} params: ${inputProps}\n`);
           }
           break;

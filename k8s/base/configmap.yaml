@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcp-git-intel-config
+  namespace: mcp-git-intel
+  labels:
+    app.kubernetes.io/name: mcp-git-intel
+    app.kubernetes.io/component: config
+data:
+  NODE_ENV: 'production'
+  GIT_INTEL_REPO: '/repo'
+  # Git safety environment
+  GIT_TERMINAL_PROMPT: '0'
+  GIT_PAGER: ''
+  LC_ALL: 'C'

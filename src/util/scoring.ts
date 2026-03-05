@@ -36,11 +36,7 @@ export function recencyScore(
  * and file B changed 5 times, and they co-changed 5 times,
  * the coupling is 1.0 (B always changes with A).
  */
-export function couplingScore(
-  sharedCommits: number,
-  commitsA: number,
-  commitsB: number,
-): number {
+export function couplingScore(sharedCommits: number, commitsA: number, commitsB: number): number {
   const denominator = Math.min(commitsA, commitsB);
   if (denominator === 0) return 0;
   return Math.round((sharedCommits / denominator) * 100) / 100;
@@ -62,20 +58,11 @@ export function knowledgeScore(params: {
   const frequencyWeight = 0.3;
   const recencyWeight = 0.4;
 
-  const volumeNorm =
-    params.maxLinesChanged > 0
-      ? params.linesChanged / params.maxLinesChanged
-      : 0;
-  const frequencyNorm =
-    params.maxCommitCount > 0
-      ? params.commitCount / params.maxCommitCount
-      : 0;
+  const volumeNorm = params.maxLinesChanged > 0 ? params.linesChanged / params.maxLinesChanged : 0;
+  const frequencyNorm = params.maxCommitCount > 0 ? params.commitCount / params.maxCommitCount : 0;
   const recency = recencyScore(params.mostRecentTimestamp, params.nowSec);
 
-  const raw =
-    volumeNorm * volumeWeight +
-    frequencyNorm * frequencyWeight +
-    recency * recencyWeight;
+  const raw = volumeNorm * volumeWeight + frequencyNorm * frequencyWeight + recency * recencyWeight;
 
   return Math.round(raw * 100);
 }
@@ -93,7 +80,7 @@ export function riskScore(factors: Array<{ value: number; weight: number }>): nu
   }
 
   if (totalWeight === 0) return 0;
-  return Math.round(Math.min(100, (weightedSum / totalWeight)));
+  return Math.round(Math.min(100, weightedSum / totalWeight));
 }
 
 /**

@@ -1,0 +1,177 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  GitIntel MCP Server — EKS Cluster with managed node group,
+  IRSA support, cluster logging, and security best practices.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+  ClusterName:
+    Type: String
+    Default: gitintel
+  KubernetesVersion:
+    Type: String
+    Default: '1.31'
+  NodeInstanceType:
+    Type: String
+    Default: t3.medium
+    AllowedValues: [t3.small, t3.medium, t3.large, t3.xlarge, m5.large, m5.xlarge]
+  NodeDesiredSize:
+    Type: Number
+    Default: 2
+  NodeMinSize:
+    Type: Number
+    Default: 1
+  NodeMaxSize:
+    Type: Number
+    Default: 5
+  VpcStackName:
+    Type: String
+    Description: Name of the VPC CloudFormation stack
+
+Resources:
+  # ---------- EKS Cluster Role ----------
+  EKSClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ClusterName}-${Environment}-cluster-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: eks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+        - arn:aws:iam::aws:policy/AmazonEKSVPCResourceController
+      Tags:
+        - Key: Project
+          Value: mcp-git-intel
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ---------- EKS Node Role ----------
+  EKSNodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ClusterName}-${Environment}-node-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Project
+          Value: mcp-git-intel
+
+  # ---------- Cluster Security Group ----------
+  ClusterSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EKS Cluster security group
+      VpcId:
+        Fn::ImportValue: !Sub '${VpcStackName}-VpcId'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '10.0.0.0/16'
+          Description: 'Allow HTTPS from VPC'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-${Environment}-cluster-sg'
+
+  # ---------- EKS Cluster ----------
+  EKSCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Sub '${ClusterName}-${Environment}'
+      Version: !Ref KubernetesVersion
+      RoleArn: !GetAtt EKSClusterRole.Arn
+      ResourcesVpcConfig:
+        SubnetIds: !Split
+          - ','
+          - Fn::ImportValue: !Sub '${VpcStackName}-PrivateSubnets'
+        SecurityGroupIds:
+          - !Ref ClusterSecurityGroup
+        EndpointPublicAccess: false
+        EndpointPrivateAccess: true
+      Logging:
+        ClusterLogging:
+          EnabledTypes:
+            - Type: api
+            - Type: audit
+            - Type: authenticator
+            - Type: controllerManager
+            - Type: scheduler
+      Tags:
+        - Key: Project
+          Value: mcp-git-intel
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ---------- Managed Node Group ----------
+  EKSNodeGroup:
+    Type: AWS::EKS::Nodegroup
+    DependsOn: EKSCluster
+    Properties:
+      ClusterName: !Sub '${ClusterName}-${Environment}'
+      NodegroupName: !Sub '${ClusterName}-${Environment}-nodes'
+      NodeRole: !GetAtt EKSNodeRole.Arn
+      Subnets: !Split
+        - ','
+        - Fn::ImportValue: !Sub '${VpcStackName}-PrivateSubnets'
+      ScalingConfig:
+        DesiredSize: !Ref NodeDesiredSize
+        MinSize: !Ref NodeMinSize
+        MaxSize: !Ref NodeMaxSize
+      InstanceTypes:
+        - !Ref NodeInstanceType
+      AmiType: AL2023_x86_64_STANDARD
+      DiskSize: 50
+      Labels:
+        app: mcp-git-intel
+        environment: !Ref Environment
+      Tags:
+        Project: mcp-git-intel
+        Environment: !Ref Environment
+      UpdateConfig:
+        MaxUnavailable: 1
+
+  # ---------- OIDC Provider for IRSA ----------
+  OIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: !GetAtt EKSCluster.OpenIdConnectIssuerUrl
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - '9e99a48a9960b14926bb7f3b02e22da2b0ab7280'
+
+Outputs:
+  ClusterName:
+    Value: !Sub '${ClusterName}-${Environment}'
+    Export:
+      Name: !Sub '${AWS::StackName}-ClusterName'
+  ClusterEndpoint:
+    Value: !GetAtt EKSCluster.Endpoint
+    Export:
+      Name: !Sub '${AWS::StackName}-ClusterEndpoint'
+  ClusterArn:
+    Value: !GetAtt EKSCluster.Arn
+  OIDCProviderArn:
+    Value: !GetAtt OIDCProvider.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-OIDCProviderArn'
+  NodeRoleArn:
+    Value: !GetAtt EKSNodeRole.Arn

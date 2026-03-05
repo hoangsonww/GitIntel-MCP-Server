@@ -1,0 +1,1485 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitIntel — Git Intelligence MCP Server</title>
+    <meta
+      name="description"
+      content="Deep repository analytics computed locally from your commit history. Hotspots, coupling, knowledge maps, churn, risk scoring, and more."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="wiki/styles.css" />
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+          darkMode: true,
+          background: '#1c2129',
+          primaryColor: '#58a6ff',
+          primaryTextColor: '#e6edf3',
+          primaryBorderColor: '#30363d',
+          lineColor: '#58a6ff',
+          secondaryColor: '#3fb950',
+          tertiaryColor: '#d2a8ff',
+          fontFamily: 'Inter, -apple-system, sans-serif',
+          fontSize: '14px',
+        },
+        flowchart: { curve: 'basis', useMaxWidth: true },
+        sequence: { useMaxWidth: true },
+      });
+    </script>
+  </head>
+  <body>
+    <!-- Mobile sidebar toggle -->
+    <button class="sidebar-toggle" aria-label="Toggle navigation">&#9776;</button>
+
+    <div class="page-wrapper">
+      <!-- ==================== SIDEBAR ==================== -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <span class="brand-icon">GI</span>
+          <span>GitIntel Wiki</span>
+        </div>
+
+        <nav>
+          <a href="#overview" class="nav-link">Overview</a>
+
+          <div class="nav-group">
+            <span class="nav-group-title">Architecture</span>
+            <a href="#architecture" class="nav-link">System Architecture</a>
+            <a href="#data-flow" class="nav-link">Data Flow</a>
+            <a href="#module-deps" class="nav-link">Module Dependencies</a>
+            <a href="#entry-point" class="nav-link">Entry Point Flow</a>
+          </div>
+
+          <div class="nav-group">
+            <span class="nav-group-title">Tools</span>
+            <a href="#tools" class="nav-link">All 8 Tools</a>
+            <a href="#tool-hotspots" class="nav-link">Hotspots</a>
+            <a href="#tool-churn" class="nav-link">Churn</a>
+            <a href="#tool-coupling" class="nav-link">Coupling</a>
+            <a href="#tool-knowledge" class="nav-link">Knowledge Map</a>
+            <a href="#tool-complexity" class="nav-link">Complexity Trend</a>
+            <a href="#tool-risk" class="nav-link">Risk Assessment</a>
+            <a href="#tool-release" class="nav-link">Release Notes</a>
+            <a href="#tool-contributors" class="nav-link">Contributor Stats</a>
+          </div>
+
+          <div class="nav-group">
+            <span class="nav-group-title">Resources</span>
+            <a href="#resources" class="nav-link">MCP Resources</a>
+          </div>
+
+          <div class="nav-group">
+            <span class="nav-group-title">Operations</span>
+            <a href="#installation" class="nav-link">Installation</a>
+            <a href="#configuration" class="nav-link">Configuration</a>
+            <a href="#security" class="nav-link">Security Model</a>
+            <a href="#performance" class="nav-link">Performance</a>
+            <a href="#deployment" class="nav-link">Deployment</a>
+            <a href="#infra" class="nav-link">Infrastructure</a>
+          </div>
+
+          <div class="nav-group">
+            <span class="nav-group-title">Development</span>
+            <a href="#development" class="nav-link">Dev Workflow</a>
+            <a href="#testing" class="nav-link">Testing</a>
+            <a href="#design-decisions" class="nav-link">Design Decisions</a>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="sidebar-links">
+            <a
+              href="https://github.com/hoangsonww/GitIntel-MCP-Server"
+              target="_blank"
+              rel="noopener"
+              class="sidebar-ext-link"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path
+                  d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+                />
+              </svg>
+              Repository
+            </a>
+            <a
+              href="https://github.com/hoangsonww"
+              target="_blank"
+              rel="noopener"
+              class="sidebar-ext-link"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path
+                  d="M10.561 8.073a6.005 6.005 0 0 1 3.432 5.142.75.75 0 1 1-1.498.07 4.5 4.5 0 0 0-8.99 0 .75.75 0 0 1-1.498-.07 6.005 6.005 0 0 1 3.431-5.142 3.999 3.999 0 1 1 5.123 0zM10.5 5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0z"
+                />
+              </svg>
+              GitHub Profile
+            </a>
+            <a
+              href="https://sonnguyenhoang.com"
+              target="_blank"
+              rel="noopener"
+              class="sidebar-ext-link"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path
+                  d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm7.5-6.923c-.67.204-1.335.82-1.887 1.855A7.97 7.97 0 0 0 5.145 4H7.5V1.077zM4.09 4a9.267 9.267 0 0 1 .64-1.539 6.7 6.7 0 0 1 .597-.933A7.025 7.025 0 0 0 2.255 4H4.09zm-.582 3.5c.03-.877.138-1.718.312-2.5H1.674a6.958 6.958 0 0 0-.656 2.5h2.49zM4.847 5a12.5 12.5 0 0 0-.338 2.5H7.5V5H4.847zM8.5 5v2.5h2.99a12.495 12.495 0 0 0-.337-2.5H8.5zM4.51 8.5a12.5 12.5 0 0 0 .337 2.5H7.5V8.5H4.51zm3.99 0V11h2.653c.187-.765.306-1.608.338-2.5H8.5zM5.145 12c.138.386.295.744.468 1.068.552 1.035 1.218 1.65 1.887 1.855V12H5.145zm.182 2.472a6.696 6.696 0 0 1-.597-.933A9.268 9.268 0 0 1 4.09 12H2.255a7.024 7.024 0 0 0 3.072 2.472zM3.82 11a13.652 13.652 0 0 1-.312-2.5h-2.49c.062.89.291 1.733.656 2.5H3.82zm6.853 3.472A7.024 7.024 0 0 0 13.745 12H11.91a9.27 9.27 0 0 1-.64 1.539 6.688 6.688 0 0 1-.597.933zM8.5 12v2.923c.67-.204 1.335-.82 1.887-1.855.173-.324.33-.682.468-1.068H8.5zm3.68-1h2.146c.365-.767.594-1.61.656-2.5h-2.49a13.65 13.65 0 0 1-.312 2.5zm2.802-3.5a6.959 6.959 0 0 0-.656-2.5H12.18c.174.782.282 1.623.312 2.5h2.49zM11.27 2.461c.247.464.462.98.64 1.539h1.835a7.024 7.024 0 0 0-3.072-2.472c.218.284.418.598.597.933zM10.855 4a7.966 7.966 0 0 0-.468-1.068C9.835 1.897 9.17 1.282 8.5 1.077V4h2.355z"
+                />
+              </svg>
+              Website
+            </a>
+          </div>
+          <p class="sidebar-credit">
+            Built by
+            <a href="https://sonnguyenhoang.com" target="_blank" rel="noopener">Son Nguyen</a>
+          </p>
+        </div>
+      </aside>
+
+      <!-- ==================== MAIN ==================== -->
+      <main class="main-content">
+        <!-- ===== HERO ===== -->
+        <header class="hero" id="overview">
+          <h1>GitIntel</h1>
+          <p class="tagline">
+            Git Intelligence MCP Server &mdash; deep repository analytics computed locally from your
+            commit history. No external APIs, no data leaves your machine.
+          </p>
+          <div class="badge-row">
+            <span class="badge"
+              ><span class="dot" style="background: #3178c6"></span> TypeScript 5.7</span
+            >
+            <span class="badge"
+              ><span class="dot" style="background: #339933"></span> Node.js &ge;18</span
+            >
+            <span class="badge"
+              ><span class="dot" style="background: #8b5cf6"></span> MCP SDK 1.27</span
+            >
+            <span class="badge"
+              ><span class="dot" style="background: #3e67b1"></span> Zod 3.24</span
+            >
+            <span class="badge"
+              ><span class="dot" style="background: #6e9f18"></span> Vitest 3.0</span
+            >
+            <span class="badge"
+              ><span class="dot" style="background: #f05032"></span> Git &ge;2.20</span
+            >
+            <span class="badge"
+              ><span class="dot" style="background: #22c55e"></span> MIT License</span
+            >
+          </div>
+        </header>
+
+        <!-- ===== WHAT IT DOES ===== -->
+        <section id="what-it-does">
+          <h2>What GitIntel Does</h2>
+          <p>
+            GitIntel surfaces the same insights that tools like CodeScene and GitPrime charge for
+            &mdash;
+            <strong
+              >hotspots, temporal coupling, knowledge maps, churn analysis, complexity trends, risk
+              scoring, and more</strong
+            >. Everything runs locally against your <code>.git</code> directory.
+          </p>
+
+          <div class="feature-grid stagger">
+            <div class="feature-item">
+              <div class="fi-icon">&#128293;</div>
+              <h5>Change Hotspots</h5>
+              <p>Find files changed most frequently &mdash; the top 4% contain 50%+ of bugs.</p>
+            </div>
+            <div class="feature-item">
+              <div class="fi-icon">&#128260;</div>
+              <h5>Code Churn</h5>
+              <p>
+                Detect code rewritten as fast as it's written. Churn ratio near 1.0 = instability.
+              </p>
+            </div>
+            <div class="feature-item">
+              <div class="fi-icon">&#128279;</div>
+              <h5>Temporal Coupling</h5>
+              <p>
+                Hidden dependencies not visible in imports &mdash; files that always change
+                together.
+              </p>
+            </div>
+            <div class="feature-item">
+              <div class="fi-icon">&#129504;</div>
+              <h5>Knowledge Map</h5>
+              <p>
+                Who knows what, weighted by recency. Find the right reviewer, spot knowledge silos.
+              </p>
+            </div>
+            <div class="feature-item">
+              <div class="fi-icon">&#128200;</div>
+              <h5>Complexity Trend</h5>
+              <p>Track how files grow in lines, nesting depth, and functions over time.</p>
+            </div>
+            <div class="feature-item">
+              <div class="fi-icon">&#9888;&#65039;</div>
+              <h5>Risk Assessment</h5>
+              <p>
+                Score changes 0&ndash;100 combining hotspot history, size, sensitivity, and spread.
+              </p>
+            </div>
+            <div class="feature-item">
+              <div class="fi-icon">&#128220;</div>
+              <h5>Release Notes</h5>
+              <p>Structured changelogs from conventional commits with breaking change detection.</p>
+            </div>
+            <div class="feature-item">
+              <div class="fi-icon">&#128101;</div>
+              <h5>Contributor Stats</h5>
+              <p>
+                Team dynamics, collaboration graphs, workload distribution, and knowledge silos.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== ARCHITECTURE ===== -->
+        <section id="architecture">
+          <h2>System Architecture</h2>
+          <p>
+            GitIntel is a Node.js MCP server that communicates over <strong>stdio</strong> using
+            JSON-RPC 2.0. It calls Git via <code>execFile</code> (never <code>exec</code>) to
+            prevent shell injection. All operations are strictly read-only.
+          </p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph TD
+    Client["MCP Client&lt;br/&gt;Claude Code / Codex"]
+    Server["mcp-git-intel&lt;br/&gt;Node.js process"]
+    Git["Git CLI&lt;br/&gt;execFile, no shell"]
+    Repo[".git directory&lt;br/&gt;read-only"]
+
+    Client &lt;--&gt;|"stdio JSON-RPC 2.0&lt;br/&gt;MCP protocol"| Server
+    Server --&gt;|"execFile with args array&lt;br/&gt;30s timeout, 50MB buffer"| Git
+    Git --&gt;|"stdout/stderr"| Server
+    Git --&gt;|"read-only operations"| Repo
+
+    subgraph ServerInternals ["Server Internals"]
+        direction TB
+        Transport["StdioServerTransport"]
+        McpServer["McpServer SDK"]
+        Tools["8 Tool Handlers"]
+        Resources["2 Resource Handlers"]
+        GitLayer["Git Layer&lt;br/&gt;executor, parser, repo"]
+        UtilLayer["Util Layer&lt;br/&gt;scoring, formatting"]
+
+        Transport --&gt; McpServer
+        McpServer --&gt; Tools
+        McpServer --&gt; Resources
+        Tools --&gt; GitLayer
+        Tools --&gt; UtilLayer
+        Resources --&gt; GitLayer
+    end
+        </pre
+            >
+          </div>
+        </section>
+
+        <!-- ===== DATA FLOW ===== -->
+        <section id="data-flow">
+          <h2>Data Flow</h2>
+          <p>
+            Every tool invocation follows the same pipeline: validate, execute, parse, score,
+            format, return.
+          </p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+sequenceDiagram
+    participant C as MCP Client
+    participant S as Tool Handler
+    participant V as Validation (Zod)
+    participant G as Git Executor
+    participant P as Parser
+    participant Sc as Scoring Engine
+    participant F as Formatter
+
+    C-&gt;&gt;S: callTool(name, args)
+    S-&gt;&gt;V: Validate inputs
+    V-&gt;&gt;V: validatePathFilter() / validateRef()
+    S-&gt;&gt;G: gitExec(args, options)
+    G-&gt;&gt;G: execFile('git', [...args])
+    G--&gt;&gt;S: stdout / stderr
+    S-&gt;&gt;P: Parse git output
+    P--&gt;&gt;S: Structured data
+    S-&gt;&gt;Sc: Calculate scores
+    Sc--&gt;&gt;S: Scored results
+    S-&gt;&gt;F: Format tables and bars
+    F--&gt;&gt;S: Formatted text
+    S--&gt;&gt;C: CallToolResult
+        </pre
+            >
+          </div>
+        </section>
+
+        <!-- ===== MODULE DEPS ===== -->
+        <section id="module-deps">
+          <h2>Module Dependency Graph</h2>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph TD
+    index["src/index.ts&lt;br/&gt;Entry point"]
+
+    subgraph ToolsLayer ["Tools Layer"]
+        hotspots["hotspots.ts"]
+        churn["churn.ts"]
+        coupling["coupling.ts"]
+        knowledge["knowledge-map.ts"]
+        complexity["complexity.ts"]
+        risk["risk.ts"]
+        release["release-notes.ts"]
+        contributors["contributors.ts"]
+    end
+
+    subgraph ResourcesLayer ["Resources Layer"]
+        summary["summary.ts"]
+        activity["activity.ts"]
+    end
+
+    subgraph GitLayer ["Git Layer"]
+        executor["executor.ts&lt;br/&gt;execFile wrapper"]
+        parser["parser.ts&lt;br/&gt;Output parsers"]
+        repo["repo.ts&lt;br/&gt;Validation"]
+    end
+
+    subgraph UtilLayer ["Util Layer"]
+        scoring["scoring.ts&lt;br/&gt;Score algorithms"]
+        formatting["formatting.ts&lt;br/&gt;Output formatting"]
+    end
+
+    index --&gt; hotspots & churn & coupling & knowledge & complexity & risk & release & contributors
+    index --&gt; summary & activity
+
+    hotspots --&gt; executor & repo & parser & formatting & scoring
+    churn --&gt; executor & repo & formatting & scoring
+    coupling --&gt; executor & repo & formatting & scoring
+    knowledge --&gt; executor & repo & formatting & scoring
+    complexity --&gt; executor & repo & formatting
+    risk --&gt; executor & repo & formatting & scoring
+    release --&gt; executor & repo & parser & formatting
+    contributors --&gt; executor & formatting & scoring
+
+    summary --&gt; executor
+    activity --&gt; executor
+    repo --&gt; executor
+        </pre
+            >
+          </div>
+        </section>
+
+        <!-- ===== ENTRY POINT ===== -->
+        <section id="entry-point">
+          <h2>Entry Point Flow</h2>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph TD
+    Start["main()"] --&gt; ExpandHome["Expand ~ in repo path"]
+    ExpandHome --&gt; CheckGit["checkGitVersion()"]
+    CheckGit --&gt;|"&lt; 2.20"| Fatal1["Exit: git version too old"]
+    CheckGit --&gt;|"&gt;= 2.20"| ResolveRoot["resolveRepoRoot()"]
+    ResolveRoot --&gt;|"not a repo"| Fatal2["Exit: not a git repository"]
+    ResolveRoot --&gt;|"valid"| CreateServer["Create McpServer"]
+    CreateServer --&gt; RegisterTools["Register 8 tools"]
+    RegisterTools --&gt; RegisterResources["Register 2 resources"]
+    RegisterResources --&gt; Connect["Connect StdioServerTransport"]
+    Connect --&gt; Running["Server running on stdio"]
+    Running --&gt;|"SIGINT / SIGTERM"| Shutdown["Graceful shutdown"]
+        </pre
+            >
+          </div>
+        </section>
+
+        <!-- ===== TOOLS OVERVIEW ===== -->
+        <section id="tools">
+          <h2>All 8 Analysis Tools</h2>
+          <p>
+            Each tool returns <strong>formatted text</strong> with tables, score bars
+            <code>[&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9617;&#9617;] 80</code
+            >, and actionable recommendations &mdash; not raw git output.
+          </p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph TD
+    subgraph ChangeAnalysis ["Change Analysis"]
+        H["hotspots&lt;br/&gt;Change frequency"]
+        CH["churn&lt;br/&gt;Write/rewrite ratio"]
+        CT["complexity_trend&lt;br/&gt;Complexity over time"]
+    end
+    subgraph DependencyAnalysis ["Dependency Analysis"]
+        CO["coupling&lt;br/&gt;Temporal coupling"]
+    end
+    subgraph TeamAnalysis ["Team Analysis"]
+        KM["knowledge_map&lt;br/&gt;Who knows what"]
+        CS["contributor_stats&lt;br/&gt;Team dynamics"]
+    end
+    subgraph RiskRelease ["Risk &amp; Release"]
+        RA["risk_assessment&lt;br/&gt;Change risk scoring"]
+        RN["release_notes&lt;br/&gt;Changelog generation"]
+    end
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tool</th>
+                  <th>What it does</th>
+                  <th>Key Insight</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>hotspots</code></td>
+                  <td>Files that change most frequently</td>
+                  <td>Top 4% of files contain 50%+ of bugs</td>
+                </tr>
+                <tr>
+                  <td><code>churn</code></td>
+                  <td>Code written then rewritten</td>
+                  <td>Churn ratio near 1.0 = instability</td>
+                </tr>
+                <tr>
+                  <td><code>coupling</code></td>
+                  <td>Files that always change together</td>
+                  <td>Hidden dependencies not in imports</td>
+                </tr>
+                <tr>
+                  <td><code>knowledge_map</code></td>
+                  <td>Who knows a file/dir best (recency weighted)</td>
+                  <td>Find reviewers, spot silos</td>
+                </tr>
+                <tr>
+                  <td><code>complexity_trend</code></td>
+                  <td>How file complexity evolves over time</td>
+                  <td>Catch files growing out of control</td>
+                </tr>
+                <tr>
+                  <td><code>risk_assessment</code></td>
+                  <td>Risk score 0&ndash;100 for changes</td>
+                  <td>Hotspot + size + sensitivity + spread</td>
+                </tr>
+                <tr>
+                  <td><code>release_notes</code></td>
+                  <td>Structured changelog from conventional commits</td>
+                  <td>Groups by type, extracts breaking changes</td>
+                </tr>
+                <tr>
+                  <td><code>contributor_stats</code></td>
+                  <td>Team dynamics, collaboration graph</td>
+                  <td>Workload distribution, knowledge silos</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ===== INDIVIDUAL TOOLS ===== -->
+        <section id="tool-hotspots">
+          <h3>hotspots &mdash; Change Frequency Analysis</h3>
+          <p>
+            The top 4% of files by change frequency typically contain 50%+ of bugs. Use this to
+            identify files needing refactoring, better test coverage, or architectural attention.
+          </p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph LR
+    A["git log --name-only&lt;br/&gt;--since=N days"] --&gt; B["Count file appearances&lt;br/&gt;across commits"]
+    B --&gt; C["Normalize to 0-100&lt;br/&gt;heat score"]
+    C --&gt; D["Format table with&lt;br/&gt;score bars"]
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>days</code></td>
+                  <td>integer (&gt;0)</td>
+                  <td>90</td>
+                  <td>Days to look back</td>
+                </tr>
+                <tr>
+                  <td><code>limit</code></td>
+                  <td>integer (1&ndash;100)</td>
+                  <td>20</td>
+                  <td>Max results</td>
+                </tr>
+                <tr>
+                  <td><code>path_filter</code></td>
+                  <td>string</td>
+                  <td>&mdash;</td>
+                  <td>Filter to files under this path</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout">
+            <strong>Interpretation:</strong> Files with high change frequency are candidates for
+            refactoring, better test coverage, or breaking into smaller modules. Files changed by
+            many authors may indicate unclear ownership.
+          </div>
+        </section>
+
+        <section id="tool-churn">
+          <h3>churn &mdash; Code Churn Analysis</h3>
+          <p>
+            High churn indicates instability, unclear requirements, or code that is hard to get
+            right.
+          </p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph LR
+    A["git log --numstat&lt;br/&gt;--since=N days"] --&gt; B["Sum additions/deletions&lt;br/&gt;per file"]
+    B --&gt; C["Calculate churn ratio&lt;br/&gt;deletions / additions"]
+    C --&gt; D["Sort by total churn&lt;br/&gt;format table"]
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>days</code></td>
+                  <td>integer (&gt;0)</td>
+                  <td>90</td>
+                  <td>Days to look back</td>
+                </tr>
+                <tr>
+                  <td><code>limit</code></td>
+                  <td>integer (1&ndash;100)</td>
+                  <td>20</td>
+                  <td>Max results</td>
+                </tr>
+                <tr>
+                  <td><code>path_filter</code></td>
+                  <td>string</td>
+                  <td>&mdash;</td>
+                  <td>Filter to files under this path</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warn">
+            <strong>Churn ratio near 1.0</strong> means code is being rewritten as fast as it's
+            written. Investigate root cause: unstable requirements? Wrong abstraction? Hard problem?
+          </div>
+        </section>
+
+        <section id="tool-coupling">
+          <h3>coupling &mdash; Temporal Coupling Detection</h3>
+          <p>Reveals hidden dependencies not visible in imports or type signatures.</p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph LR
+    A["git log --name-only&lt;br/&gt;multi-file commits"] --&gt; B["Build co-change&lt;br/&gt;matrix"]
+    B --&gt; C["coupling = shared /&lt;br/&gt;min(A, B)"]
+    C --&gt; D["Filter by threshold&lt;br/&gt;format pairs"]
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>days</code></td>
+                  <td>integer (&gt;0)</td>
+                  <td>90</td>
+                  <td>Days to look back</td>
+                </tr>
+                <tr>
+                  <td><code>min_coupling</code></td>
+                  <td>float (0&ndash;1)</td>
+                  <td>0.5</td>
+                  <td>Minimum coupling score</td>
+                </tr>
+                <tr>
+                  <td><code>min_commits</code></td>
+                  <td>integer (&gt;0)</td>
+                  <td>3</td>
+                  <td>Minimum shared commits</td>
+                </tr>
+                <tr>
+                  <td><code>limit</code></td>
+                  <td>integer (1&ndash;50)</td>
+                  <td>20</td>
+                  <td>Max pairs</td>
+                </tr>
+                <tr>
+                  <td><code>path_filter</code></td>
+                  <td>string</td>
+                  <td>&mdash;</td>
+                  <td>Filter to path</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout">
+            <strong>Coupling formula:</strong>
+            <code>shared_commits / min(commits_A, commits_B)</code>. Uses <code>min</code> so that
+            if B always changes with A, coupling is 1.0 even if A changes independently.
+          </div>
+        </section>
+
+        <section id="tool-knowledge">
+          <h3>knowledge_map &mdash; Who Knows What</h3>
+          <p>Find the right reviewer. Identify knowledge silos. Plan team transitions.</p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph LR
+    A["git log --numstat&lt;br/&gt;per-author stats"] --&gt; B["Weight: 30% volume&lt;br/&gt;30% frequency"]
+    B --&gt; C["Weight: 40% recency&lt;br/&gt;30-day half-life"]
+    C --&gt; D["Score 0-100&lt;br/&gt;per author"]
+    D --&gt; E["Bus factor =&lt;br/&gt;authors with score &gt;= 30"]
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>path</code></td>
+                  <td>string <strong>(required)</strong></td>
+                  <td>&mdash;</td>
+                  <td>File or directory to analyze</td>
+                </tr>
+                <tr>
+                  <td><code>days</code></td>
+                  <td>integer (&gt;0)</td>
+                  <td>365</td>
+                  <td>Days to look back</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="tool-complexity">
+          <h3>complexity_trend &mdash; Complexity Over Time</h3>
+          <p>
+            Track how a file's complexity evolves. Catch files growing out of control before they
+            become unmaintainable.
+          </p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph LR
+    A["git log for file"] --&gt; B["Sample N points&lt;br/&gt;evenly across history"]
+    B --&gt; C["git show hash:path&lt;br/&gt;at each sample"]
+    C --&gt; D["Measure: lines, depth&lt;br/&gt;functions, long lines"]
+    D --&gt; E["Format trend table&lt;br/&gt;with warnings"]
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>path</code></td>
+                  <td>string <strong>(required)</strong></td>
+                  <td>&mdash;</td>
+                  <td>File to analyze</td>
+                </tr>
+                <tr>
+                  <td><code>samples</code></td>
+                  <td>integer (3&ndash;30)</td>
+                  <td>10</td>
+                  <td>Time samples</td>
+                </tr>
+                <tr>
+                  <td><code>days</code></td>
+                  <td>integer (&gt;0)</td>
+                  <td>180</td>
+                  <td>Days to look back</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="tool-risk">
+          <h3>risk_assessment &mdash; Change Risk Scoring</h3>
+          <p>
+            Score the risk of uncommitted changes or a commit range before merging. Combines four
+            signals.
+          </p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph TD
+    D["git diff --numstat"] --&gt; R["Risk Engine"]
+    L["git log --name-only&lt;br/&gt;90-day history"] --&gt; R
+    R --&gt; H["Hotspot Factor&lt;br/&gt;30% weight"]
+    R --&gt; S["Size Factor&lt;br/&gt;25% weight"]
+    R --&gt; SE["Sensitivity Factor&lt;br/&gt;30% weight"]
+    R --&gt; SP["Spread Factor&lt;br/&gt;15% weight"]
+    H &amp; S &amp; SE &amp; SP --&gt; O["Overall Risk&lt;br/&gt;0-100 score"]
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>ref_range</code></td>
+                  <td>string</td>
+                  <td>uncommitted</td>
+                  <td>Git ref range (e.g. <code>main..feature</code>)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Risk Thresholds</h4>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Score</th>
+                  <th>Level</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>&ge; 70</td>
+                  <td>HIGH</td>
+                  <td>Thorough code review required</td>
+                </tr>
+                <tr>
+                  <td>&ge; 40</td>
+                  <td>MEDIUM</td>
+                  <td>Standard review, extra testing</td>
+                </tr>
+                <tr>
+                  <td>&lt; 40</td>
+                  <td>LOW</td>
+                  <td>Standard process</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Sensitivity Patterns</h4>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Score</th>
+                  <th>File Patterns</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>100</td>
+                  <td>
+                    <code>.env</code>, <code>.pem</code>, <code>.key</code>, <code>.cert</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td>90&ndash;95</td>
+                  <td>Auth, payment, credential, session files</td>
+                </tr>
+                <tr>
+                  <td>80</td>
+                  <td>Database, migration, schema files</td>
+                </tr>
+                <tr>
+                  <td>70</td>
+                  <td>Docker, CI/CD, Jenkinsfile</td>
+                </tr>
+                <tr>
+                  <td>60</td>
+                  <td>Config files</td>
+                </tr>
+                <tr>
+                  <td>0</td>
+                  <td>Everything else</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="tool-release">
+          <h3>release_notes &mdash; Changelog Generation</h3>
+          <p>Generate structured changelogs from conventional commits between two git refs.</p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>from_ref</code></td>
+                  <td>string <strong>(required)</strong></td>
+                  <td>&mdash;</td>
+                  <td>Starting ref</td>
+                </tr>
+                <tr>
+                  <td><code>to_ref</code></td>
+                  <td>string</td>
+                  <td>HEAD</td>
+                  <td>Ending ref</td>
+                </tr>
+                <tr>
+                  <td><code>group_by</code></td>
+                  <td><code>type</code>|<code>scope</code>|<code>author</code></td>
+                  <td>type</td>
+                  <td>Grouping strategy</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="tool-contributors">
+          <h3>contributor_stats &mdash; Team Dynamics</h3>
+          <p>
+            Comprehensive contributor analytics: activity, collaboration graph, knowledge silos,
+            focus areas, and commit time patterns.
+          </p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph LR
+    A["git log --numstat"] --&gt; B["Per-author profiles"]
+    B --&gt; C["Collaboration graph&lt;br/&gt;shared files"]
+    B --&gt; D["Knowledge silos&lt;br/&gt;sole contributors"]
+    B --&gt; E["Focus areas&lt;br/&gt;top directories"]
+    B --&gt; F["Activity timeline"]
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>days</code></td>
+                  <td>integer (&gt;0)</td>
+                  <td>90</td>
+                  <td>Days to look back</td>
+                </tr>
+                <tr>
+                  <td><code>author</code></td>
+                  <td>string</td>
+                  <td>&mdash;</td>
+                  <td>Filter to specific author</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ===== RESOURCES ===== -->
+        <section id="resources">
+          <h2>MCP Resources</h2>
+          <p>
+            Resources provide static data that clients can read at any time (not invoked as tools).
+          </p>
+
+          <div class="cards stagger">
+            <div class="card">
+              <h4>git://repo/summary</h4>
+              <p>
+                Repository snapshot: branch, last commit, total commits, active contributors, top
+                languages, age, remote URL.
+              </p>
+            </div>
+            <div class="card">
+              <h4>git://repo/activity</h4>
+              <p>
+                Recent 50-commit activity feed with hash, relative date, author, subject, and change
+                stats.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== INSTALLATION ===== -->
+        <section id="installation">
+          <h2>Installation</h2>
+          <p>
+            GitIntel is <strong>not published to npm</strong>. Clone, build, and register locally.
+          </p>
+
+          <h3>Prerequisites</h3>
+          <ul>
+            <li><strong>Node.js</strong> &ge; 18</li>
+            <li><strong>Git</strong> &ge; 2.20</li>
+          </ul>
+
+          <h3>Build from Source</h3>
+          <div class="code-block">
+            <span class="lang-label">bash</span>
+            <pre>
+git clone &lt;repo-url&gt;
+cd mcp-server
+npm install
+npm run build</pre
+            >
+          </div>
+
+          <h3>Register with Claude Code</h3>
+          <div class="code-block">
+            <span class="lang-label">bash</span>
+            <pre>
+# Analyze current directory
+claude mcp add git-intel -- node /absolute/path/to/mcp-server/dist/index.js
+
+# Specific repository
+claude mcp add git-intel -- node /absolute/path/to/mcp-server/dist/index.js /path/to/repo</pre
+            >
+          </div>
+
+          <h3>Register with Any MCP Client</h3>
+          <div class="code-block">
+            <span class="lang-label">json</span>
+            <pre>
+{
+  "mcpServers": {
+    "git-intel": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-server/dist/index.js"],
+      "env": {
+        "GIT_INTEL_REPO": "/path/to/your/repo"
+      }
+    }
+  }
+}</pre
+            >
+          </div>
+        </section>
+
+        <!-- ===== CONFIGURATION ===== -->
+        <section id="configuration">
+          <h2>Configuration</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Priority</th>
+                  <th>Method</th>
+                  <th>Example</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td>CLI argument</td>
+                  <td><code>node dist/index.js /path/to/repo</code></td>
+                </tr>
+                <tr>
+                  <td>2</td>
+                  <td>Environment variable</td>
+                  <td><code>GIT_INTEL_REPO=/path/to/repo</code></td>
+                </tr>
+                <tr>
+                  <td>3</td>
+                  <td>Current working directory</td>
+                  <td>Falls back to <code>process.cwd()</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            The <code>~</code> prefix is expanded to the user's home directory in all path inputs.
+          </p>
+        </section>
+
+        <!-- ===== SECURITY ===== -->
+        <section id="security">
+          <h2>Security Model</h2>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph TD
+    Input["User Input&lt;br/&gt;tool args"] --&gt; Zod["Zod Schema&lt;br/&gt;Validation"]
+    Zod --&gt; PathVal["validatePathFilter()&lt;br/&gt;blocks .. and abs paths"]
+    Zod --&gt; RefVal["validateRef()&lt;br/&gt;char whitelist"]
+    PathVal &amp; RefVal --&gt; ExecFile["execFile()&lt;br/&gt;no shell, array args"]
+    ExecFile --&gt; Git["Git CLI&lt;br/&gt;read-only commands only"]
+    ExecFile --&gt; Timeout["30s timeout"]
+    ExecFile --&gt; Buffer["50MB max buffer"]
+    ExecFile --&gt; Env["GIT_TERMINAL_PROMPT=0&lt;br/&gt;GIT_PAGER=''&lt;br/&gt;LC_ALL=C"]
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Threat</th>
+                  <th>Mitigation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Shell injection</td>
+                  <td><code>execFile</code> &mdash; array args, no shell interpolation</td>
+                </tr>
+                <tr>
+                  <td>Path traversal</td>
+                  <td>
+                    <code>validatePathFilter()</code> blocks <code>..</code> and absolute paths
+                  </td>
+                </tr>
+                <tr>
+                  <td>Ref injection</td>
+                  <td><code>validateRef()</code> strict character whitelist</td>
+                </tr>
+                <tr>
+                  <td>Write operations</td>
+                  <td>Strictly read-only &mdash; no tool modifies the repository</td>
+                </tr>
+                <tr>
+                  <td>Network access</td>
+                  <td>No external network calls &mdash; all data is local</td>
+                </tr>
+                <tr>
+                  <td>Interactive prompts</td>
+                  <td><code>GIT_TERMINAL_PROMPT=0</code></td>
+                </tr>
+                <tr>
+                  <td>Timeouts</td>
+                  <td>30-second default on all git commands</td>
+                </tr>
+                <tr>
+                  <td>Memory exhaustion</td>
+                  <td>50MB max buffer</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ===== PERFORMANCE ===== -->
+        <section id="performance">
+          <h2>Performance</h2>
+
+          <h3>Git Command Efficiency</h3>
+          <ul>
+            <li>Targeted <code>--format</code> strings minimize output parsing</li>
+            <li><code>--no-merges</code> skips merge commits that inflate counts</li>
+            <li><code>--since</code> filters are pushed to git (server-side filtering)</li>
+            <li>Coupling analysis caps at 50 files/commit to avoid O(n&sup2;) pair generation</li>
+            <li>Complexity trend samples evenly (default 10 points) rather than every commit</li>
+          </ul>
+
+          <h3>Output Limits</h3>
+          <ul>
+            <li>All tools accept a <code>limit</code> parameter (default 20, max 50&ndash;100)</li>
+            <li>Results sorted by relevance before truncation</li>
+          </ul>
+
+          <h3>Concurrency</h3>
+          <ul>
+            <li>MCP protocol handles one request at a time over stdio (serial)</li>
+            <li>Each tool makes 1&ndash;3 sequential git calls</li>
+          </ul>
+        </section>
+
+        <!-- ===== DEPLOYMENT ===== -->
+        <section id="deployment">
+          <h2>Deployment</h2>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph LR
+    subgraph Build ["Build Pipeline"]
+        Code["Source Code"] --&gt; Docker["Docker Build&lt;br/&gt;Multi-stage"]
+        Docker --&gt; Image["Container Image&lt;br/&gt;~120MB"]
+    end
+
+    subgraph Registry ["Container Registry"]
+        Image --&gt; ECR["AWS ECR"]
+        Image --&gt; ACR["Azure ACR"]
+    end
+
+    subgraph Orchestration ["Orchestration"]
+        ECR --&gt; EKS["AWS EKS&lt;br/&gt;Kubernetes"]
+        ACR --&gt; AKS["Azure AKS&lt;br/&gt;Kubernetes"]
+    end
+
+    subgraph IaC ["Infrastructure as Code"]
+        TF["Terraform"] --&gt; EKS
+        TF --&gt; AKS
+    end
+        </pre
+            >
+          </div>
+
+          <p>
+            The project includes production-ready infrastructure code for both AWS and Azure. See
+            the <a href="#infra">Infrastructure</a> section for details.
+          </p>
+
+          <h3>Docker</h3>
+          <div class="code-block">
+            <span class="lang-label">bash</span>
+            <pre>
+# Build the image
+docker build -t mcp-git-intel:latest .
+
+# Run against a local repo
+docker run --rm -v /path/to/repo:/repo mcp-git-intel:latest
+
+# Docker Compose (with health checks, resource limits)
+docker compose up</pre
+            >
+          </div>
+        </section>
+
+        <!-- ===== INFRASTRUCTURE ===== -->
+        <section id="infra">
+          <h2>Infrastructure</h2>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph TD
+    subgraph TerraformRoot ["Terraform"]
+        TFMain["terraform/&lt;br/&gt;main.tf, variables.tf"]
+        TFModules["modules/&lt;br/&gt;networking, eks, aks"]
+    end
+
+    subgraph AWS ["AWS Stack"]
+        VPC["VPC + Subnets"]
+        ECR["ECR Repository"]
+        EKS["EKS Cluster"]
+        IAM["IAM Roles"]
+        VPC --&gt; EKS
+        ECR --&gt; EKS
+        IAM --&gt; EKS
+    end
+
+    subgraph Azure ["Azure Stack"]
+        RG["Resource Group"]
+        VNET["VNet + Subnets"]
+        ACR["ACR Registry"]
+        AKS["AKS Cluster"]
+        RG --&gt; VNET --&gt; AKS
+        RG --&gt; ACR --&gt; AKS
+    end
+
+    subgraph K8s ["Kubernetes Manifests"]
+        NS["Namespace"]
+        Deploy["Deployment"]
+        SVC["Service"]
+        HPA["HPA"]
+        PDB["PodDisruptionBudget"]
+        NP["NetworkPolicy"]
+        SA["ServiceAccount"]
+    end
+
+    TFMain --&gt; AWS
+    TFMain --&gt; Azure
+    AWS --&gt; K8s
+    Azure --&gt; K8s
+        </pre
+            >
+          </div>
+
+          <h3>Directory Structure</h3>
+          <div class="code-block">
+            <span class="lang-label">text</span>
+            <pre>
+aws/
+  cloudformation/
+    ecr.yaml              # ECR repository
+    vpc.yaml              # VPC, subnets, NAT
+    eks.yaml              # EKS cluster + node group
+azure/
+  arm/
+    acr.json              # Container registry
+    vnet.json             # Virtual network
+    aks.json              # AKS cluster
+terraform/
+  main.tf                 # Root module
+  variables.tf            # Input variables
+  outputs.tf              # Outputs
+  providers.tf            # Provider config
+  environments/
+    dev.tfvars            # Dev overrides
+    staging.tfvars        # Staging overrides
+    prod.tfvars           # Production config
+  modules/
+    networking/           # VPC/VNet
+    eks/                  # AWS EKS
+    aks/                  # Azure AKS
+k8s/
+  base/
+    namespace.yaml
+    deployment.yaml
+    service.yaml
+    hpa.yaml
+    pdb.yaml
+    networkpolicy.yaml
+    serviceaccount.yaml
+    configmap.yaml
+  overlays/
+    dev/
+    staging/
+    prod/</pre
+            >
+          </div>
+        </section>
+
+        <!-- ===== DEVELOPMENT ===== -->
+        <section id="development">
+          <h2>Development Workflow</h2>
+
+          <div class="code-block">
+            <span class="lang-label">bash</span>
+            <pre>
+npm run dev          # Run server with tsx (auto-reload)
+npm run cli          # Interactive REPL for testing
+npm run smoke        # Smoke test -- every tool and resource
+npm test             # Unit tests (vitest)
+npm run test:watch   # Watch mode
+npm run lint         # Type check (tsc --noEmit)
+npm run build        # Compile TypeScript to dist/</pre
+            >
+          </div>
+
+          <h3>CLI REPL</h3>
+          <div class="code-block">
+            <span class="lang-label">text</span>
+            <pre>
+git-intel> tools                          # List all tools
+git-intel> resources                      # List all resources
+git-intel> call hotspots {"days": 60}     # Call a tool
+git-intel> read git://repo/summary        # Read a resource
+git-intel> exit</pre
+            >
+          </div>
+        </section>
+
+        <!-- ===== TESTING ===== -->
+        <section id="testing">
+          <h2>Testing</h2>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph LR
+    Unit["Unit Tests&lt;br/&gt;vitest"] --&gt; Scoring["scoring.ts"]
+    Unit --&gt; Parsing["parser.ts"]
+    Unit --&gt; Formatting["formatting.ts"]
+    Smoke["Smoke Test"] --&gt; AllTools["All 8 tools"]
+    Smoke --&gt; AllResources["All 2 resources"]
+    CLI["CLI REPL"] --&gt; AdHoc["Ad-hoc testing"]
+        </pre
+            >
+          </div>
+
+          <ul>
+            <li>
+              <strong>Unit tests</strong> (<code>npm test</code>): Vitest tests for scoring,
+              parsing, formatting
+            </li>
+            <li>
+              <strong>Smoke test</strong> (<code>npm run smoke</code>): Connects a real MCP client,
+              calls every tool and resource
+            </li>
+            <li>
+              <strong>CLI REPL</strong> (<code>npm run cli</code>): Interactive testing during
+              development
+            </li>
+          </ul>
+        </section>
+
+        <!-- ===== DESIGN DECISIONS ===== -->
+        <section id="design-decisions">
+          <h2>Design Decisions</h2>
+
+          <h3>Formatted Text Output (not JSON)</h3>
+          <p>
+            Tools return pre-formatted text with markdown tables, score bars, and interpretation
+            sections. AI clients can present output directly without additional formatting. JSON
+            would require the AI to format it, adding latency and errors.
+          </p>
+
+          <h3>Per-Tool Git Commands (not shared cache)</h3>
+          <p>
+            Each tool makes its own git calls. Tools need different git output formats. Caching
+            would add complexity and memory pressure. Git's pack format makes re-reading fast.
+          </p>
+
+          <h3>Zod for Input Validation</h3>
+          <p>
+            The MCP SDK uses Zod for schema definition, providing runtime validation and TypeScript
+            type inference. Every parameter has a default value, so tools work with zero arguments.
+          </p>
+
+          <h3>Coupling Uses min() Denominator</h3>
+          <p>
+            <code>coupling = shared / min(commitsA, commitsB)</code> captures the "B depends on A"
+            relationship. If B changed 5 times and always with A, coupling is 1.0 even if A changes
+            independently.
+          </p>
+
+          <h3>Knowledge Score Weights Recency at 40%</h3>
+          <p>
+            30% volume + 30% frequency + 40% recency. Deliberately over-weights recency because code
+            understanding decays. Recent contributors know the current state better.
+          </p>
+        </section>
+
+        <!-- ===== PROJECT STRUCTURE ===== -->
+        <section id="project-structure">
+          <h2>Project Structure</h2>
+          <div class="code-block">
+            <span class="lang-label">text</span>
+            <pre>
+src/
+  index.ts              Entry point, server setup, tool/resource registration
+  cli.ts                Interactive REPL for testing
+  smoke-test.ts         Automated smoke test
+  git/
+    executor.ts         Safe git command runner (execFile, timeouts, env)
+    parser.ts           Git output parsers (log, numstat, conventional commits)
+    repo.ts             Repo validation, path/ref sanitization
+  tools/
+    hotspots.ts         Change frequency analysis
+    churn.ts            Code churn (additions vs deletions)
+    coupling.ts         Temporal coupling detection
+    knowledge-map.ts    Knowledge scoring per author
+    complexity.ts       Complexity trend over time
+    risk.ts             Multi-factor risk assessment
+    release-notes.ts    Changelog from conventional commits
+    contributors.ts     Contributor analytics and collaboration
+  resources/
+    summary.ts          Repository snapshot resource
+    activity.ts         Recent commit activity feed
+  util/
+    scoring.ts          Normalization, recency decay, coupling, risk scoring
+    formatting.ts       Tables, score bars, text output helpers</pre
+            >
+          </div>
+        </section>
+
+        <footer>
+          <p>GitIntel &mdash; Git Intelligence MCP Server &middot; MIT License</p>
+          <div class="footer-links">
+            <a
+              href="https://github.com/hoangsonww/GitIntel-MCP-Server"
+              target="_blank"
+              rel="noopener"
+              >GitHub Repo</a
+            >
+            <span class="footer-sep">&middot;</span>
+            <a href="https://github.com/hoangsonww" target="_blank" rel="noopener">@hoangsonww</a>
+            <span class="footer-sep">&middot;</span>
+            <a href="https://sonnguyenhoang.com" target="_blank" rel="noopener"
+              >sonnguyenhoang.com</a
+            >
+          </div>
+          <p class="text-muted mt-1">
+            Built by
+            <a href="https://sonnguyenhoang.com" target="_blank" rel="noopener">Son Nguyen</a> with
+            TypeScript, MCP SDK, and zero external API dependencies.
+          </p>
+        </footer>
+      </main>
+    </div>
+
+    <!-- Scroll to top -->
+    <button class="scroll-top" aria-label="Scroll to top">&#8593;</button>
+
+    <script src="wiki/scripts.js"></script>
+  </body>
+</html>

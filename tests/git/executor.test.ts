@@ -32,10 +32,7 @@ describe('gitExec - safe command runner', () => {
 
   it('should pass arguments safely without shell interpretation', async () => {
     // Arguments go directly to the process, never through a shell
-    const result = await gitExec(
-      ['log', '--format=%s', '-1'],
-      { cwd: repo.path },
-    );
+    const result = await gitExec(['log', '--format=%s', '-1'], { cwd: repo.path });
     expect(result.stdout.trim()).toBeTruthy();
   });
 });
@@ -52,19 +49,13 @@ describe('gitLines', () => {
   });
 
   it('should return non-empty lines', async () => {
-    const lines = await gitLines(
-      ['log', '--format=%s'],
-      { cwd: repo.path },
-    );
+    const lines = await gitLines(['log', '--format=%s'], { cwd: repo.path });
     expect(lines.length).toBeGreaterThan(0);
     expect(lines.every((l) => l.length > 0)).toBe(true);
   });
 
   it('should return empty array for no results', async () => {
-    const lines = await gitLines(
-      ['log', '--format=%s', '--since=2099-01-01'],
-      { cwd: repo.path },
-    );
+    const lines = await gitLines(['log', '--format=%s', '--since=2099-01-01'], { cwd: repo.path });
     expect(lines).toEqual([]);
   });
 });

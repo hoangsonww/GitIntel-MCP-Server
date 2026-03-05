@@ -6,17 +6,13 @@ export function registerActivityResource(server: McpServer, repoRoot: string) {
     'repo-activity',
     'git://repo/activity',
     {
-      description: 'Recent activity feed: last 50 commits with stats, formatted as a readable timeline.',
+      description:
+        'Recent activity feed: last 50 commits with stats, formatted as a readable timeline.',
       mimeType: 'text/plain',
     },
     async () => {
       const { stdout } = await gitExec(
-        [
-          'log',
-          '--max-count=50',
-          '--format=%h|%aN|%ar|%s',
-          '--shortstat',
-        ],
+        ['log', '--max-count=50', '--format=%h|%aN|%ar|%s', '--shortstat'],
         { cwd: repoRoot },
       );
 

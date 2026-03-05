@@ -46,25 +46,26 @@ async function main() {
   } catch (err: unknown) {
     process.stderr.write(
       `[mcp-git-intel] Fatal: ${err instanceof Error ? err.message : String(err)}\n` +
-      `[mcp-git-intel] Tip: Pass a repo path as the first argument, or set GIT_INTEL_REPO env var.\n`,
+        `[mcp-git-intel] Tip: Pass a repo path as the first argument, or set GIT_INTEL_REPO env var.\n`,
     );
     process.exit(1);
   }
 
-  process.stderr.write(
-    `[mcp-git-intel] Git ${gitVersion} | Repo: ${repoRoot}\n`,
-  );
+  process.stderr.write(`[mcp-git-intel] Git ${gitVersion} | Repo: ${repoRoot}\n`);
 
   // Create MCP server
-  const server = new McpServer({
-    name: 'mcp-git-intel',
-    version: '1.0.0',
-  }, {
-    capabilities: {
-      tools: {},
-      resources: {},
+  const server = new McpServer(
+    {
+      name: 'mcp-git-intel',
+      version: '1.0.0',
     },
-  });
+    {
+      capabilities: {
+        tools: {},
+        resources: {},
+      },
+    },
+  );
 
   // Register all tools
   registerHotspots(server, repoRoot);
@@ -84,9 +85,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  process.stderr.write(
-    `[mcp-git-intel] Server running. 8 tools, 2 resources registered.\n`,
-  );
+  process.stderr.write(`[mcp-git-intel] Server running. 8 tools, 2 resources registered.\n`);
 
   // Graceful shutdown
   const shutdown = async () => {

@@ -30,7 +30,10 @@ export function registerReleaseNotes(server: McpServer, repoRoot: string) {
       inputSchema: z.object({
         from_ref: z.string().describe('Starting ref (tag, branch, or commit hash)'),
         to_ref: z.string().default('HEAD').describe('Ending ref (default: HEAD)'),
-        group_by: z.enum(['type', 'scope', 'author']).default('type').describe('How to group commits (default: type)'),
+        group_by: z
+          .enum(['type', 'scope', 'author'])
+          .default('type')
+          .describe('How to group commits (default: type)'),
       }),
       annotations: {
         readOnlyHint: true,
@@ -45,12 +48,7 @@ export function registerReleaseNotes(server: McpServer, repoRoot: string) {
         const range = `${cleanFrom}..${cleanTo}`;
 
         const { stdout } = await gitExec(
-          [
-            'log',
-            '--format=%H|%aN|%aI|%s|%b%x00',
-            '--no-merges',
-            range,
-          ],
+          ['log', '--format=%H|%aN|%aI|%s|%b%x00', '--no-merges', range],
           { cwd: repoRoot },
         );
 
@@ -154,7 +152,9 @@ export function registerReleaseNotes(server: McpServer, repoRoot: string) {
         // Build output
         const outputParts: string[] = [];
         outputParts.push(`# Release Notes: ${from_ref} -> ${to_ref}\n`);
-        outputParts.push(`**${entries.length} commits** by ${new Set(entries.map((e) => e.author)).size} contributors\n`);
+        outputParts.push(
+          `**${entries.length} commits** by ${new Set(entries.map((e) => e.author)).size} contributors\n`,
+        );
 
         // Breaking changes first
         const breaking = entries.filter((e) => e.breaking);
@@ -162,7 +162,9 @@ export function registerReleaseNotes(server: McpServer, repoRoot: string) {
           outputParts.push(`## Breaking Changes\n`);
           for (const entry of breaking) {
             const pr = entry.prNumber ? ` (#${entry.prNumber})` : '';
-            outputParts.push(`- **${entry.scope ? `${entry.scope}: ` : ''}${entry.description}**${pr} -- ${entry.author}`);
+            outputParts.push(
+              `- **${entry.scope ? `${entry.scope}: ` : ''}${entry.description}**${pr} -- ${entry.author}`,
+            );
             const breakingDetail = entry.body.match(/^BREAKING[ -]CHANGE:\s*(.+)/m);
             if (breakingDetail) {
               outputParts.push(`  > ${breakingDetail[1]}`);
@@ -172,33 +174,49 @@ export function registerReleaseNotes(server: McpServer, repoRoot: string) {
         }
 
         // Grouped sections
-        const sortOrder = ['feat', 'fix', 'perf', 'refactor', 'docs', 'test', 'build', 'ci', 'chore', 'style', 'revert', 'other'];
+        const sortOrder = [
+          'feat',
+          'fix',
+          'perf',
+          'refactor',
+          'docs',
+          'test',
+          'build',
+          'ci',
+          'chore',
+          'style',
+          'revert',
+          'other',
+        ];
 
-        const sortedKeys = group_by === 'type'
-          ? [...groups.keys()].sort((a, b) => {
-              const ia = sortOrder.indexOf(a);
-              const ib = sortOrder.indexOf(b);
-              return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-            })
-          : [...groups.keys()].sort();
+        const sortedKeys =
+          group_by === 'type'
+            ? [...groups.keys()].sort((a, b) => {
+                const ia = sortOrder.indexOf(a);
+                const ib = sortOrder.indexOf(b);
+                return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+              })
+            : [...groups.keys()].sort();
 
         for (const key of sortedKeys) {
           const groupEntries = groups.get(key)!;
           const nonBreaking = groupEntries.filter((e) => !e.breaking);
           if (nonBreaking.length === 0) continue;
 
-          const label = group_by === 'type'
-            ? typeLabels[key] ?? key.charAt(0).toUpperCase() + key.slice(1)
-            : key;
+          const label =
+            group_by === 'type'
+              ? (typeLabels[key] ?? key.charAt(0).toUpperCase() + key.slice(1))
+              : key;
 
           outputParts.push(`## ${label}\n`);
           for (const entry of nonBreaking) {
             const pr = entry.prNumber ? ` (#${entry.prNumber})` : '';
             const scope = entry.scope && group_by !== 'scope' ? `**${entry.scope}**: ` : '';
             const authorLabel = group_by !== 'author' ? ` -- ${entry.author}` : '';
-            const issues = entry.issueRefs.length > 0
-              ? ` (closes ${entry.issueRefs.map((i) => `#${i}`).join(', ')})`
-              : '';
+            const issues =
+              entry.issueRefs.length > 0
+                ? ` (closes ${entry.issueRefs.map((i) => `#${i}`).join(', ')})`
+                : '';
             outputParts.push(`- ${scope}${entry.description}${pr}${issues}${authorLabel}`);
           }
           outputParts.push('');
