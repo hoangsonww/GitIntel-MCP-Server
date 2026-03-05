@@ -16,9 +16,17 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["mcp", "git", "analytics", "code-intelligence", "model-context-protocol"],
+  "keywords": [
+    "mcp",
+    "git",
+    "analytics",
+    "code-intelligence",
+    "model-context-protocol"
+  ],
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
@@ -29,6 +37,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "prettier": "^3.8.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"

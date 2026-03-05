@@ -21,8 +21,19 @@ export function registerChurn(server: McpServer, repoRoot: string) {
       description:
         'Analyze code churn — how much code is being written and then rewritten. High churn indicates instability, unclear requirements, or code that is hard to get right. A file with 500 lines added and 400 deleted in a month is a red flag.',
       inputSchema: z.object({
-        days: z.number().int().positive().default(90).describe('Number of days to look back (default: 90)'),
-        limit: z.number().int().positive().max(100).default(20).describe('Max results to return (default: 20, max: 100)'),
+        days: z
+          .number()
+          .int()
+          .positive()
+          .default(90)
+          .describe('Number of days to look back (default: 90)'),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .max(100)
+          .default(20)
+          .describe('Max results to return (default: 20, max: 100)'),
         path_filter: z.string().optional().describe('Filter to files under this path'),
       }),
       annotations: {
@@ -103,7 +114,7 @@ export function registerChurn(server: McpServer, repoRoot: string) {
 
         // Sort by total churn (additions + deletions) descending
         const sorted = [...fileChurn.entries()]
-          .sort((a, b) => (b[1].additions + b[1].deletions) - (a[1].additions + a[1].deletions))
+          .sort((a, b) => b[1].additions + b[1].deletions - (a[1].additions + a[1].deletions))
           .slice(0, limit);
 
         if (sorted.length === 0) {

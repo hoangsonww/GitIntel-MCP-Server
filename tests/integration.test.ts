@@ -22,9 +22,12 @@ describe('MCP Git Intel - Integration', () => {
 
   beforeAll(() => {
     repo = createTestRepo();
-    server = new McpServer({ name: 'test-git-intel', version: '1.0.0' }, {
-      capabilities: { tools: {}, resources: {} },
-    });
+    server = new McpServer(
+      { name: 'test-git-intel', version: '1.0.0' },
+      {
+        capabilities: { tools: {}, resources: {} },
+      },
+    );
 
     // Register all tools and resources
     registerHotspots(server, repo.path);
@@ -100,7 +103,7 @@ describe('scoring utils', () => {
     expect(normalize(0, 0, 100)).toBe(0);
     expect(normalize(100, 0, 100)).toBe(100);
     expect(normalize(150, 0, 100)).toBe(100); // capped
-    expect(normalize(-10, 0, 100)).toBe(0);  // capped
+    expect(normalize(-10, 0, 100)).toBe(0); // capped
   });
 
   it('should format daysAgo strings', async () => {
@@ -167,7 +170,10 @@ describe('formatting utils', () => {
     const { formatTable } = await import('../src/util/formatting.js');
     const table = formatTable(
       ['Name', 'Count'],
-      [['foo', '10'], ['bar', '5']],
+      [
+        ['foo', '10'],
+        ['bar', '5'],
+      ],
     );
     expect(table).toContain('Name');
     expect(table).toContain('foo');

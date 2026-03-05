@@ -21,9 +21,12 @@ export function registerRiskAssessment(server: McpServer, repoRoot: string) {
         'file hotspot history, change size, number of files, author familiarity, and file type sensitivity. ' +
         'Returns a score 0-100 with per-file breakdown and actionable recommendations.',
       inputSchema: z.object({
-        ref_range: z.string().optional().describe(
-          'Git ref range to assess (e.g., "main..feature-branch"). Defaults to uncommitted changes.',
-        ),
+        ref_range: z
+          .string()
+          .optional()
+          .describe(
+            'Git ref range to assess (e.g., "main..feature-branch"). Defaults to uncommitted changes.',
+          ),
       }),
       annotations: {
         readOnlyHint: true,
@@ -92,7 +95,10 @@ export function registerRiskAssessment(server: McpServer, repoRoot: string) {
           { pattern: /\b(migration|schema|database|db)\b/i, weight: 80 },
           { pattern: /\.(env|pem|key|cert|crt)$/i, weight: 100 },
           { pattern: /config\.(ts|js|py|go|yaml|yml|json)$/i, weight: 60 },
-          { pattern: /(Dockerfile|docker-compose|\.github\/workflows|Jenkinsfile|\.gitlab-ci)/i, weight: 70 },
+          {
+            pattern: /(Dockerfile|docker-compose|\.github\/workflows|Jenkinsfile|\.gitlab-ci)/i,
+            weight: 70,
+          },
         ];
 
         // Signal 3: Change size
@@ -128,9 +134,9 @@ export function registerRiskAssessment(server: McpServer, repoRoot: string) {
           };
 
           const score = riskScore([
-            { value: hotspotFactor, weight: 0.30 },
+            { value: hotspotFactor, weight: 0.3 },
             { value: sizeFactor, weight: 0.25 },
-            { value: sensitivityFactor, weight: 0.30 },
+            { value: sensitivityFactor, weight: 0.3 },
             { value: fileCountFactor, weight: 0.15 },
           ]);
 
@@ -146,9 +152,7 @@ export function registerRiskAssessment(server: McpServer, repoRoot: string) {
         );
 
         const riskLevel =
-          overallRisk >= 70 ? '🔴 HIGH' :
-          overallRisk >= 40 ? '🟡 MEDIUM' :
-          '🟢 LOW';
+          overallRisk >= 70 ? '🔴 HIGH' : overallRisk >= 40 ? '🟡 MEDIUM' : '🟢 LOW';
 
         // Build output
         const headers = ['File', 'Risk', 'Hotspot', 'Size', 'Sensitive', 'Spread'];
@@ -163,19 +167,29 @@ export function registerRiskAssessment(server: McpServer, repoRoot: string) {
 
         const recommendations: string[] = [];
         if (overallRisk >= 70) {
-          recommendations.push('- **Request thorough code review** — this change touches high-risk areas.');
+          recommendations.push(
+            '- **Request thorough code review** — this change touches high-risk areas.',
+          );
         }
         if (fileRisks.some((f) => f.factors.sensitivity >= 80)) {
-          recommendations.push('- **Security review recommended** — sensitive files (auth, payments, secrets) are modified.');
+          recommendations.push(
+            '- **Security review recommended** — sensitive files (auth, payments, secrets) are modified.',
+          );
         }
         if (changedFiles.length >= 10) {
-          recommendations.push('- **Consider splitting this change** — large PRs have higher defect rates.');
+          recommendations.push(
+            '- **Consider splitting this change** — large PRs have higher defect rates.',
+          );
         }
         if (fileRisks.some((f) => f.factors.hotspot >= 70)) {
-          recommendations.push('- **Extra testing needed** — you\'re modifying historically buggy files.');
+          recommendations.push(
+            "- **Extra testing needed** — you're modifying historically buggy files.",
+          );
         }
         if (totalLines > 500) {
-          recommendations.push(`- **Large change** (${totalLines} lines) — review fatigue increases defect escape rate.`);
+          recommendations.push(
+            `- **Large change** (${totalLines} lines) — review fatigue increases defect escape rate.`,
+          );
         }
 
         const summary = [

@@ -111,7 +111,9 @@ export function registerKnowledgeMap(server: McpServer, repoRoot: string) {
         }
 
         // Calculate knowledge scores
-        const maxLines = Math.max(...[...authors.values()].map((a) => a.linesAdded + a.linesDeleted));
+        const maxLines = Math.max(
+          ...[...authors.values()].map((a) => a.linesAdded + a.linesDeleted),
+        );
         const maxCommits = Math.max(...[...authors.values()].map((a) => a.commits));
 
         const scored = [...authors.values()].map((a) => ({

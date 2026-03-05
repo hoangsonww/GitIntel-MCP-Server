@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parseShortstat, parseConventionalCommit, getLogFormat, parseLog } from '../../src/git/parser.js';
+import {
+  parseShortstat,
+  parseConventionalCommit,
+  getLogFormat,
+  parseLog,
+} from '../../src/git/parser.js';
 
 describe('parseShortstat', () => {
   it('should parse a full shortstat line', () => {

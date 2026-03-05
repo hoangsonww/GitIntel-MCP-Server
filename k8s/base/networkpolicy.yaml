@@ -1,0 +1,44 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-git-intel-default-deny
+  namespace: mcp-git-intel
+  labels:
+    app.kubernetes.io/name: mcp-git-intel
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-git-intel-allow-internal
+  namespace: mcp-git-intel
+  labels:
+    app.kubernetes.io/name: mcp-git-intel
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-git-intel
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic within the namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: mcp-git-intel
+      ports:
+        - protocol: TCP
+          port: 3000

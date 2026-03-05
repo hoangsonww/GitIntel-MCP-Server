@@ -26,9 +26,25 @@ export function registerCoupling(server: McpServer, repoRoot: string) {
         'of commits, refactoring one without the other will likely break things.',
       inputSchema: z.object({
         days: z.number().int().positive().default(90).describe('Days to look back (default: 90)'),
-        min_coupling: z.number().min(0).max(1).default(0.5).describe('Minimum coupling score 0-1 (default: 0.5)'),
-        min_commits: z.number().int().positive().default(3).describe('Minimum shared commits to report (default: 3)'),
-        limit: z.number().int().positive().max(50).default(20).describe('Max pairs to return (default: 20)'),
+        min_coupling: z
+          .number()
+          .min(0)
+          .max(1)
+          .default(0.5)
+          .describe('Minimum coupling score 0-1 (default: 0.5)'),
+        min_commits: z
+          .number()
+          .int()
+          .positive()
+          .default(3)
+          .describe('Minimum shared commits to report (default: 3)'),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .max(50)
+          .default(20)
+          .describe('Max pairs to return (default: 20)'),
         path_filter: z.string().optional().describe('Filter to files under this path'),
       }),
       annotations: {
@@ -89,7 +105,7 @@ export function registerCoupling(server: McpServer, repoRoot: string) {
         }
 
         // Build co-change matrix (only for files that appear in multi-file commits)
-        const pairKey = (a: string, b: string) => a < b ? `${a}\0${b}` : `${b}\0${a}`;
+        const pairKey = (a: string, b: string) => (a < b ? `${a}\0${b}` : `${b}\0${a}`);
         const pairStats = new Map<string, { count: number; subjects: string[] }>();
 
         for (const commit of commitFiles) {
@@ -142,7 +158,7 @@ export function registerCoupling(server: McpServer, repoRoot: string) {
         if (top.length === 0) {
           return textResult(
             `No file pairs found with coupling >= ${min_coupling} and >= ${min_commits} shared commits ` +
-            `in the last ${days} days.`,
+              `in the last ${days} days.`,
           );
         }
 

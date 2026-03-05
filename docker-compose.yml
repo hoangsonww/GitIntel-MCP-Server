@@ -1,0 +1,42 @@
+# =============================================================================
+# GitIntel MCP Server — Docker Compose (Development & Production)
+# =============================================================================
+
+services:
+  git-intel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: mcp-git-intel:latest
+    container_name: mcp-git-intel
+    restart: unless-stopped
+    volumes:
+      - ${GIT_INTEL_REPO:-./}:/repo:ro
+    environment:
+      - NODE_ENV=production
+      - GIT_INTEL_REPO=/repo
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M
+    healthcheck:
+      test: ['CMD', 'node', '-e', 'process.exit(0)']
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'

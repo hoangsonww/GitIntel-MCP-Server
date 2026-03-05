@@ -14,9 +14,23 @@ export function registerHotspots(server: McpServer, repoRoot: string) {
       description:
         'Find files that change most frequently. High change frequency correlates with defect density — the top 4% of files by change frequency typically contain 50%+ of bugs. Use this to identify files that need refactoring, better test coverage, or architectural attention.',
       inputSchema: z.object({
-        days: z.number().int().positive().default(90).describe('Number of days to look back (default: 90)'),
-        limit: z.number().int().positive().max(100).default(20).describe('Max results to return (default: 20, max: 100)'),
-        path_filter: z.string().optional().describe('Filter to files under this path (e.g., "src/api")'),
+        days: z
+          .number()
+          .int()
+          .positive()
+          .default(90)
+          .describe('Number of days to look back (default: 90)'),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .max(100)
+          .default(20)
+          .describe('Max results to return (default: 20, max: 100)'),
+        path_filter: z
+          .string()
+          .optional()
+          .describe('Filter to files under this path (e.g., "src/api")'),
       }),
       annotations: {
         readOnlyHint: true,
@@ -50,7 +64,10 @@ export function registerHotspots(server: McpServer, repoRoot: string) {
         }
 
         // Parse: group files by change frequency
-        const fileStats = new Map<string, { changes: number; authors: Set<string>; lastDate: string }>();
+        const fileStats = new Map<
+          string,
+          { changes: number; authors: Set<string>; lastDate: string }
+        >();
         const commits = stdout.split('\n\n').filter((c) => c.trim());
 
         for (const commit of commits) {
@@ -110,8 +127,8 @@ export function registerHotspots(server: McpServer, repoRoot: string) {
           `Analyzed ${totalFiles} changed files. Showing top ${hotCount}.\n`,
           formatTable(headers, rows, { alignRight: new Set([1, 2]) }),
           `\n\n**Interpretation**: Files with high change frequency are likely candidates for refactoring, ` +
-          `better test coverage, or breaking into smaller modules. Files changed by many authors may ` +
-          `indicate unclear ownership or shared concerns that should be separated.`,
+            `better test coverage, or breaking into smaller modules. Files changed by many authors may ` +
+            `indicate unclear ownership or shared concerns that should be separated.`,
         ].join('\n');
 
         return textResult(summary);

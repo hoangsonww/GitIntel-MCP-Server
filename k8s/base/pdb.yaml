@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mcp-git-intel
+  namespace: mcp-git-intel
+  labels:
+    app.kubernetes.io/name: mcp-git-intel
+    app.kubernetes.io/component: server
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-git-intel
+      app.kubernetes.io/component: server

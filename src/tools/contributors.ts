@@ -15,7 +15,7 @@ interface ContributorProfile {
   firstCommit: number;
   lastCommit: number;
   commitHours: Map<number, number>; // hour -> count
-  coAuthors: Map<string, number>;   // author -> shared file count
+  coAuthors: Map<string, number>; // author -> shared file count
 }
 
 export function registerContributorStats(server: McpServer, repoRoot: string) {
@@ -56,12 +56,15 @@ export function registerContributorStats(server: McpServer, repoRoot: string) {
 
         const { stdout } = await gitExec(logArgs, { cwd: repoRoot });
         if (!stdout.trim()) {
-          return textResult(`No commits found in the last ${days} days${author ? ` for "${author}"` : ''}.`);
+          return textResult(
+            `No commits found in the last ${days} days${author ? ` for "${author}"` : ''}.`,
+          );
         }
 
         const profiles = new Map<string, ContributorProfile>();
         const fileAuthors = new Map<string, Set<string>>(); // file -> set of authors
-        let currentAuthor: { name: string; email: string; timestamp: number; hour: number } | null = null;
+        let currentAuthor: { name: string; email: string; timestamp: number; hour: number } | null =
+          null;
 
         for (const line of stdout.split('\n')) {
           if (line.startsWith('COMMIT:')) {
@@ -141,8 +144,14 @@ export function registerContributorStats(server: McpServer, repoRoot: string) {
               const profileA = profiles.get(authorList[i]);
               const profileB = profiles.get(authorList[j]);
               if (profileA && profileB) {
-                profileA.coAuthors.set(authorList[j], (profileA.coAuthors.get(authorList[j]) ?? 0) + 1);
-                profileB.coAuthors.set(authorList[i], (profileB.coAuthors.get(authorList[i]) ?? 0) + 1);
+                profileA.coAuthors.set(
+                  authorList[j],
+                  (profileA.coAuthors.get(authorList[j]) ?? 0) + 1,
+                );
+                profileB.coAuthors.set(
+                  authorList[i],
+                  (profileB.coAuthors.get(authorList[i]) ?? 0) + 1,
+                );
               }
             }
           }
@@ -162,7 +171,15 @@ export function registerContributorStats(server: McpServer, repoRoot: string) {
 
         // Overview table
         const maxCommits = sorted[0].commits;
-        const headers = ['Author', 'Commits', 'Activity', '+Lines', '-Lines', 'Files', 'Last Active'];
+        const headers = [
+          'Author',
+          'Commits',
+          'Activity',
+          '+Lines',
+          '-Lines',
+          'Files',
+          'Last Active',
+        ];
         const rows = sorted.map((p) => [
           p.name,
           p.commits.toString(),
@@ -188,9 +205,7 @@ export function registerContributorStats(server: McpServer, repoRoot: string) {
           }
         }
 
-        const topCollabs = [...collabPairs.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 5);
+        const topCollabs = [...collabPairs.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
 
         if (topCollabs.length > 0) {
           parts.push(`\n\n### Top Collaborations (shared files)\n`);
@@ -244,9 +259,7 @@ function buildDetailedProfile(profile: ContributorProfile, nowSec: number, days:
   parts.push(`- **Last commit**: ${daysAgoString(profile.lastCommit, nowSec)}`);
 
   // Focus areas
-  const topDirs = [...profile.directories.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
+  const topDirs = [...profile.directories.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
 
   parts.push(`\n### Focus Areas\n`);
   for (const [dir, count] of topDirs) {
@@ -270,9 +283,7 @@ function buildDetailedProfile(profile: ContributorProfile, nowSec: number, days:
   }
 
   // Collaborators
-  const topCollabs = [...profile.coAuthors.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+  const topCollabs = [...profile.coAuthors.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   if (topCollabs.length > 0) {
     parts.push(`\n### Top Collaborators\n`);

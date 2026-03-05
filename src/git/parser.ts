@@ -7,8 +7,8 @@ export interface LogEntry {
   hash: string;
   authorName: string;
   authorEmail: string;
-  date: string;       // ISO 8601
-  timestamp: number;  // Unix seconds
+  date: string; // ISO 8601
+  timestamp: number; // Unix seconds
   subject: string;
   body: string;
   files: FileChange[];
@@ -151,9 +151,7 @@ export function parseConventionalCommit(subject: string): {
   description: string;
   breaking: boolean;
 } | null {
-  const match = subject.match(
-    /^(\w+)(?:\(([^)]+)\))?(!)?\s*:\s*(.+)$/,
-  );
+  const match = subject.match(/^(\w+)(?:\(([^)]+)\))?(!)?\s*:\s*(.+)$/);
   if (!match) return null;
 
   return {
