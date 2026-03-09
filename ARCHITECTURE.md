@@ -354,14 +354,6 @@ graph TD
     M4 --> Safe
     M5 --> Safe
     Safe --> RO["Read-Only Git Commands<br/>log, diff, show, rev-parse,<br/>rev-list, ls-files, remote"]
-
-    style T1 fill:#ffcdd2,stroke:#c62828
-    style T2 fill:#ffcdd2,stroke:#c62828
-    style T3 fill:#ffcdd2,stroke:#c62828
-    style T4 fill:#ffcdd2,stroke:#c62828
-    style T5 fill:#ffcdd2,stroke:#c62828
-    style Safe fill:#c8e6c9,stroke:#2e7d32
-    style RO fill:#e8f5e9,stroke:#388e3c
 ```
 
 ### Why `execFile` and not `exec`
@@ -492,9 +484,6 @@ graph TD
     RegisterResources --> Connect["Connect StdioServerTransport"]
     Connect --> Running["Server running\nwaiting for JSON-RPC"]
     Running -->|"SIGINT/SIGTERM"| Shutdown["Graceful shutdown"]
-
-    style NoRepo fill:#fff3cd,stroke:#ffc107
-    style HasRepo fill:#d4edda,stroke:#28a745
 ```
 
 ### Tool Registration Sequence

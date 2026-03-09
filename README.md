@@ -100,12 +100,6 @@ graph LR
     B -->|score| C["Scored Results<br/>normalized 0-100"]
     C -->|format| D["Formatted Output<br/>tables, bars, text"]
     D -->|wrap| E["MCP Response<br/>CallToolResult"]
-
-    style A fill:#f0f0f0,stroke:#999
-    style B fill:#e3f2fd,stroke:#1976d2
-    style C fill:#fff3e0,stroke:#f57c00
-    style D fill:#e8f5e9,stroke:#388e3c
-    style E fill:#f3e5f5,stroke:#7b1fa2
 ```
 
 ## Resources
