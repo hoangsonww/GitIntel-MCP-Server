@@ -319,3 +319,78 @@ This transcript demonstrates several characteristics of the `mcp-git-intel` tool
 3. **Cross-tool synthesis**: The final report combined data from all tools to produce insight that no single tool could provide alone (e.g., "high churn + decreasing complexity = healthy refactor").
 4. **Actionable output**: The tools provide not just data but interpretation, which Claude used to build its analysis. The final recommendation (knowledge silo mitigation) came from connecting contributor_stats, knowledge_map, and coupling results.
 5. **Formatted output**: Tables, score bars, and section headers made the raw tool output immediately readable without additional formatting.
+
+---
+
+## Using `repo_path` for Cross-Repo Analysis
+
+When the server is started outside a git repository (or you want to analyze a different repo), every tool accepts the `repo_path` parameter:
+
+### The Prompt
+
+```
+> Analyze the hotspots and contributor stats for my jwt-module project
+```
+
+### Tool Invocations
+
+Claude detects that the current directory is not the jwt-module repo and passes `repo_path` explicitly:
+
+#### hotspots (repo_path: "C:/Users/you/jwt-module", days: 90)
+
+```
+## Change Hotspots (last 90 days)
+
+Analyzed 28 changed files. Showing top 5.
+
+File                      Changes  Authors  Last Changed  Heat
+------------------------  -------  -------  ------------  ---------------
+src/token/jwt.ts               12        2    2026-03-08  [██████████] 100
+src/middleware/auth.ts          8        1    2026-03-07  [██████░░░░] 67
+src/config/keys.ts              6        2    2026-03-05  [█████░░░░░] 50
+...
+```
+
+#### contributor_stats (repo_path: "C:/Users/you/jwt-module", days: 90)
+
+```
+## Contributor Statistics (last 90 days)
+
+**2 contributors**, 35 total commits
+...
+```
+
+### Error When No Repo Available
+
+If `repo_path` is omitted and the server has no default repo:
+
+```
+No git repository available. Either:
+1. Open Claude Code inside a git repository directory, OR
+2. Pass the repo_path parameter with an absolute path to a git repo.
+
+Example: { "repo_path": "C:/Users/you/your-project" }
+```
+
+This error message is designed to be immediately actionable — the AI agent can relay the instructions to the user and retry with the correct path.
+
+### Resilient Startup Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant CC as Claude Code
+    participant GI as git-intel Server
+
+    U->>CC: Opens Claude Code from home directory
+    CC->>GI: Spawns server (cwd = ~/home)
+    GI->>GI: No git repo in ~/home
+    GI-->>CC: Server connected (no default repo)
+    Note over GI: Server running, tools require repo_path
+
+    U->>CC: "Analyze hotspots for my project"
+    CC->>GI: callTool("hotspots", {repo_path: "~/my-project", days: 90})
+    GI->>GI: resolveRepoRoot("~/my-project") -> valid
+    GI-->>CC: Hotspot analysis results
+    CC-->>U: Formatted analysis
+```

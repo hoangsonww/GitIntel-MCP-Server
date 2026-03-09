@@ -6,7 +6,7 @@
     <title>GitIntel — Git Intelligence MCP Server</title>
     <meta
       name="description"
-      content="Deep repository analytics computed locally from your commit history. Hotspots, coupling, knowledge maps, churn, risk scoring, and more."
+      content="Deep repository analytics computed locally from your commit history. 12 tools: hotspots, coupling, knowledge maps, churn, risk scoring, file history, code age, commit patterns, branch risk, and more."
     />
     <meta
       name="keywords"
@@ -167,7 +167,7 @@
 
           <div class="nav-group">
             <span class="nav-group-title">Tools</span>
-            <a href="#tools" class="nav-link">All 8 Tools</a>
+            <a href="#tools" class="nav-link">All 12 Tools</a>
             <a href="#tool-hotspots" class="nav-link">Hotspots</a>
             <a href="#tool-churn" class="nav-link">Churn</a>
             <a href="#tool-coupling" class="nav-link">Coupling</a>
@@ -176,6 +176,10 @@
             <a href="#tool-risk" class="nav-link">Risk Assessment</a>
             <a href="#tool-release" class="nav-link">Release Notes</a>
             <a href="#tool-contributors" class="nav-link">Contributor Stats</a>
+            <a href="#tool-file-history" class="nav-link">File History</a>
+            <a href="#tool-code-age" class="nav-link">Code Age</a>
+            <a href="#tool-commit-patterns" class="nav-link">Commit Patterns</a>
+            <a href="#tool-branch-risk" class="nav-link">Branch Risk</a>
           </div>
 
           <div class="nav-group">
@@ -348,6 +352,34 @@
                 Team dynamics, collaboration graphs, workload distribution, and knowledge silos.
               </p>
             </div>
+            <div class="feature-item">
+              <div class="fi-icon">&#128214;</div>
+              <h5>File History</h5>
+              <p>
+                Full commit history of any file with rename tracking &mdash; who changed it, when, and why.
+              </p>
+            </div>
+            <div class="feature-item">
+              <div class="fi-icon">&#9202;</div>
+              <h5>Code Age</h5>
+              <p>
+                Age map of every file &mdash; identify stale code vs actively maintained areas.
+              </p>
+            </div>
+            <div class="feature-item">
+              <div class="fi-icon">&#128197;</div>
+              <h5>Commit Patterns</h5>
+              <p>
+                Work pattern analytics: day-of-week, time-of-day, commit sizes, and velocity trends.
+              </p>
+            </div>
+            <div class="feature-item">
+              <div class="fi-icon">&#127793;</div>
+              <h5>Branch Risk</h5>
+              <p>
+                Analyze branch staleness, divergence from main, and merge risk across all branches.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -377,7 +409,7 @@ graph TD
         direction TB
         Transport["StdioServerTransport"]
         McpServer["McpServer SDK"]
-        Tools["8 Tool Handlers"]
+        Tools["12 Tool Handlers"]
         Resources["2 Resource Handlers"]
         GitLayer["Git Layer&lt;br/&gt;executor, parser, repo"]
         UtilLayer["Util Layer&lt;br/&gt;scoring, formatting"]
@@ -449,6 +481,10 @@ graph TD
         risk["risk.ts"]
         release["release-notes.ts"]
         contributors["contributors.ts"]
+        filehistory["file-history.ts"]
+        codeage["code-age.ts"]
+        commitpatterns["commit-patterns.ts"]
+        branchrisk["branch-risk.ts"]
     end
 
     subgraph ResourcesLayer ["Resources Layer"]
@@ -468,6 +504,7 @@ graph TD
     end
 
     index --&gt; hotspots & churn & coupling & knowledge & complexity & risk & release & contributors
+    index --&gt; filehistory & codeage & commitpatterns & branchrisk
     index --&gt; summary & activity
 
     hotspots --&gt; executor & repo & parser & formatting & scoring
@@ -478,6 +515,10 @@ graph TD
     risk --&gt; executor & repo & formatting & scoring
     release --&gt; executor & repo & parser & formatting
     contributors --&gt; executor & formatting & scoring
+    filehistory --&gt; executor & repo & formatting
+    codeage --&gt; executor & repo & formatting & scoring
+    commitpatterns --&gt; executor & formatting
+    branchrisk --&gt; executor & formatting & scoring
 
     summary --&gt; executor
     activity --&gt; executor
@@ -496,11 +537,14 @@ graph TD
 graph TD
     Start["main()"] --&gt; ExpandHome["Expand ~ in repo path"]
     ExpandHome --&gt; CheckGit["checkGitVersion()"]
-    CheckGit --&gt;|"&lt; 2.20"| Fatal1["Exit: git version too old"]
+    CheckGit --&gt;|"&lt; 2.20"| WarnGit["Warn: old git version"]
     CheckGit --&gt;|"&gt;= 2.20"| ResolveRoot["resolveRepoRoot()"]
-    ResolveRoot --&gt;|"not a repo"| Fatal2["Exit: not a git repository"]
-    ResolveRoot --&gt;|"valid"| CreateServer["Create McpServer"]
-    CreateServer --&gt; RegisterTools["Register 8 tools"]
+    WarnGit --&gt; ResolveRoot
+    ResolveRoot --&gt;|"not a repo"| NullRoot["repoRoot = null&lt;br/&gt;(tools use repo_path param)"]
+    ResolveRoot --&gt;|"valid"| ValidRoot["repoRoot = path"]
+    NullRoot --&gt; CreateServer["Create McpServer"]
+    ValidRoot --&gt; CreateServer
+    CreateServer --&gt; RegisterTools["Register 12 tools"]
     RegisterTools --&gt; RegisterResources["Register 2 resources"]
     RegisterResources --&gt; Connect["Connect StdioServerTransport"]
     Connect --&gt; Running["Server running on stdio"]
@@ -512,7 +556,7 @@ graph TD
 
         <!-- ===== TOOLS OVERVIEW ===== -->
         <section id="tools">
-          <h2>All 8 Analysis Tools</h2>
+          <h2>All 12 Analysis Tools</h2>
           <p>
             Each tool returns <strong>formatted text</strong> with tables, score bars
             <code>[&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9617;&#9617;] 80</code
@@ -522,21 +566,25 @@ graph TD
           <div class="mermaid-wrapper">
             <pre class="mermaid">
 graph TD
-    subgraph ChangeAnalysis ["Change Analysis"]
+    subgraph HotspotAnalysis ["Hotspot Analysis"]
         H["hotspots&lt;br/&gt;Change frequency"]
         CH["churn&lt;br/&gt;Write/rewrite ratio"]
-        CT["complexity_trend&lt;br/&gt;Complexity over time"]
-    end
-    subgraph DependencyAnalysis ["Dependency Analysis"]
         CO["coupling&lt;br/&gt;Temporal coupling"]
+    end
+    subgraph CodeArchaeology ["Code Archaeology"]
+        FH["file_history&lt;br/&gt;File commit log"]
+        CA["code_age&lt;br/&gt;Staleness map"]
+        CT["complexity_trend&lt;br/&gt;Complexity over time"]
     end
     subgraph TeamAnalysis ["Team Analysis"]
         KM["knowledge_map&lt;br/&gt;Who knows what"]
         CS["contributor_stats&lt;br/&gt;Team dynamics"]
+        CP["commit_patterns&lt;br/&gt;Work patterns"]
     end
     subgraph RiskRelease ["Risk &amp; Release"]
         RA["risk_assessment&lt;br/&gt;Change risk scoring"]
         RN["release_notes&lt;br/&gt;Changelog generation"]
+        BR["branch_risk&lt;br/&gt;Branch staleness"]
     end
         </pre
             >
@@ -591,6 +639,26 @@ graph TD
                   <td><code>contributor_stats</code></td>
                   <td>Team dynamics, collaboration graph</td>
                   <td>Workload distribution, knowledge silos</td>
+                </tr>
+                <tr>
+                  <td><code>file_history</code></td>
+                  <td>Full commit history of a single file</td>
+                  <td>Trace evolution, find bug introductions</td>
+                </tr>
+                <tr>
+                  <td><code>code_age</code></td>
+                  <td>Age map of every file in the repo</td>
+                  <td>Find stale code vs active areas</td>
+                </tr>
+                <tr>
+                  <td><code>commit_patterns</code></td>
+                  <td>When and how the team commits</td>
+                  <td>Weekend/late-night work, velocity trends</td>
+                </tr>
+                <tr>
+                  <td><code>branch_risk</code></td>
+                  <td>Branch staleness and divergence analysis</td>
+                  <td>Merge risk, cleanup candidates</td>
                 </tr>
               </tbody>
             </table>
@@ -1070,6 +1138,257 @@ graph LR
           </div>
         </section>
 
+        <section id="tool-file-history">
+          <h3>file_history &mdash; File Commit Log</h3>
+          <p>
+            Show the full commit history of a specific file &mdash; who changed it, when, how much,
+            and why. Uses <code>--follow</code> to track renames across the file's lifetime.
+          </p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph LR
+    A["git log --follow&lt;br/&gt;--numstat --format"] --&gt; B["Parse commits with&lt;br/&gt;COMMIT: prefix"]
+    B --&gt; C["Sum additions/deletions&lt;br/&gt;per commit"]
+    C --&gt; D["Format table with&lt;br/&gt;date, author, lines, subject"]
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>path</code></td>
+                  <td>string <strong>(required)</strong></td>
+                  <td>&mdash;</td>
+                  <td>File path to analyze</td>
+                </tr>
+                <tr>
+                  <td><code>days</code></td>
+                  <td>integer (&gt;0)</td>
+                  <td>365</td>
+                  <td>Days to look back</td>
+                </tr>
+                <tr>
+                  <td><code>limit</code></td>
+                  <td>integer (1&ndash;100)</td>
+                  <td>30</td>
+                  <td>Max commits to return</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout">
+            <strong>Use cases:</strong> Understanding why a file looks the way it does, finding when a
+            bug was introduced, tracing the evolution of a critical module, or preparing for a refactor.
+          </div>
+        </section>
+
+        <section id="tool-code-age">
+          <h3>code_age &mdash; Staleness Analysis</h3>
+          <p>
+            Shows the last-modified date of every tracked file. Identifies stale files that haven't been
+            touched in months or years vs actively maintained areas.
+          </p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph LR
+    A["git ls-files"] --&gt; B["Get tracked file list"]
+    B --&gt; C["git log --name-only&lt;br/&gt;--diff-filter=AMRC"]
+    C --&gt; D["Map: file &rarr; last&lt;br/&gt;modified date"]
+    D --&gt; E["Sort by age&lt;br/&gt;format with staleness bars"]
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>path_filter</code></td>
+                  <td>string</td>
+                  <td>&mdash;</td>
+                  <td>Filter to files under this path</td>
+                </tr>
+                <tr>
+                  <td><code>limit</code></td>
+                  <td>integer (1&ndash;100)</td>
+                  <td>30</td>
+                  <td>Max files to return</td>
+                </tr>
+                <tr>
+                  <td><code>sort</code></td>
+                  <td><code>oldest</code> | <code>newest</code></td>
+                  <td>oldest</td>
+                  <td>Sort order</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warn">
+            <strong>Interpretation:</strong> High-staleness files may be stable infrastructure that
+            rarely needs changes, or abandoned code that should be reviewed for removal. Cross-reference
+            with <code>hotspots</code> to distinguish the two.
+          </div>
+        </section>
+
+        <section id="tool-commit-patterns">
+          <h3>commit_patterns &mdash; Work Pattern Analytics</h3>
+          <p>
+            Analyze when and how the team commits: day-of-week distribution, hour-of-day heatmap,
+            commit size breakdown, and weekly velocity trends.
+          </p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph LR
+    A["git log --format=aI|aN&lt;br/&gt;--shortstat"] --&gt; B["Parse timestamps&lt;br/&gt;and stat lines"]
+    B --&gt; C["Day/hour buckets&lt;br/&gt;size categorization"]
+    C --&gt; D["Weekly velocity&lt;br/&gt;trend analysis"]
+    D --&gt; E["Auto-generate insights&lt;br/&gt;weekend %, late-night %"]
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>days</code></td>
+                  <td>integer (&gt;0)</td>
+                  <td>90</td>
+                  <td>Days to look back</td>
+                </tr>
+                <tr>
+                  <td><code>author</code></td>
+                  <td>string</td>
+                  <td>&mdash;</td>
+                  <td>Filter to a specific author</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Commit Size Thresholds</h4>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Lines Changed</th>
+                  <th>Interpretation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Small</td>
+                  <td>&le; 20</td>
+                  <td>Focused, reviewable changes</td>
+                </tr>
+                <tr>
+                  <td>Medium</td>
+                  <td>21&ndash;100</td>
+                  <td>Standard feature work</td>
+                </tr>
+                <tr>
+                  <td>Large</td>
+                  <td>101&ndash;500</td>
+                  <td>Consider breaking up</td>
+                </tr>
+                <tr>
+                  <td>Huge</td>
+                  <td>&gt; 500</td>
+                  <td>Review burden, potential risk</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warn">
+            <strong>Watch for:</strong> High weekend commit percentages (burnout risk), late-night
+            hotfixes (quality concerns), and &gt;30% huge commits (review bottleneck).
+          </div>
+        </section>
+
+        <section id="tool-branch-risk">
+          <h3>branch_risk &mdash; Branch Staleness &amp; Divergence</h3>
+          <p>
+            Analyze all branches for staleness, divergence from the main branch, and merge risk. Identifies
+            stale branches for cleanup and highly diverged branches that may cause merge conflicts.
+          </p>
+
+          <div class="mermaid-wrapper">
+            <pre class="mermaid">
+graph LR
+    A["git branch --format&lt;br/&gt;refname, date, author"] --&gt; B["Parse branch list"]
+    B --&gt; C["git rev-list --left-right&lt;br/&gt;--count per branch"]
+    C --&gt; D["Compute ahead/behind&lt;br/&gt;staleness scores"]
+    D --&gt; E["Categorize: stale &gt;90d&lt;br/&gt;diverged &gt;20 commits"]
+        </pre
+            >
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>base_branch</code></td>
+                  <td>string</td>
+                  <td>HEAD</td>
+                  <td>Branch to compare against</td>
+                </tr>
+                <tr>
+                  <td><code>include_remote</code></td>
+                  <td>boolean</td>
+                  <td>false</td>
+                  <td>Include remote tracking branches</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout">
+            <strong>Cleanup strategy:</strong> Branches with 0 ahead commits are likely merged and safe to
+            delete. Branches &gt;90 days stale with significant divergence are high-risk merge candidates.
+          </div>
+        </section>
+
         <!-- ===== RESOURCES ===== -->
         <section id="resources">
           <h2>MCP Resources</h2>
@@ -1442,13 +1761,21 @@ npm run build        # Compile TypeScript to dist/</pre
           </div>
 
           <h3>CLI REPL</h3>
+          <p>
+            The CLI features a color-coded interface with categorized tool display, boxed banners,
+            and timing indicators for each tool call.
+          </p>
           <div class="code-block">
             <span class="lang-label">text</span>
             <pre>
-git-intel> tools                          # List all tools
+git-intel> tools                          # List all 12 tools by category
 git-intel> resources                      # List all resources
 git-intel> call hotspots {"days": 60}     # Call a tool
+git-intel> call code_age {"sort":"oldest"}# New: code archaeology
+git-intel> call commit_patterns           # New: work patterns
+git-intel> call branch_risk               # New: branch analysis
 git-intel> read git://repo/summary        # Read a resource
+git-intel> help                           # Show all commands and examples
 git-intel> exit</pre
             >
           </div>
@@ -1464,7 +1791,7 @@ graph LR
     Unit["Unit Tests&lt;br/&gt;vitest"] --&gt; Scoring["scoring.ts"]
     Unit --&gt; Parsing["parser.ts"]
     Unit --&gt; Formatting["formatting.ts"]
-    Smoke["Smoke Test"] --&gt; AllTools["All 8 tools"]
+    Smoke["Smoke Test"] --&gt; AllTools["All 12 tools"]
     Smoke --&gt; AllResources["All 2 resources"]
     CLI["CLI REPL"] --&gt; AdHoc["Ad-hoc testing"]
         </pre
@@ -1547,12 +1874,17 @@ src/
     risk.ts             Multi-factor risk assessment
     release-notes.ts    Changelog from conventional commits
     contributors.ts     Contributor analytics and collaboration
+    file-history.ts     Single-file commit history with rename tracking
+    code-age.ts         File staleness and age map analysis
+    commit-patterns.ts  Work pattern analytics (day, time, size, velocity)
+    branch-risk.ts      Branch staleness and divergence analysis
   resources/
     summary.ts          Repository snapshot resource
     activity.ts         Recent commit activity feed
   util/
     scoring.ts          Normalization, recency decay, coupling, risk scoring
-    formatting.ts       Tables, score bars, text output helpers</pre
+    formatting.ts       Tables, score bars, text output helpers
+    colors.ts           ANSI color utilities for CLI output</pre
             >
           </div>
         </section>

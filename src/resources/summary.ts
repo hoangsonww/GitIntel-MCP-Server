@@ -1,16 +1,32 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { gitExec, gitLines } from '../git/executor.js';
 
-export function registerSummaryResource(server: McpServer, repoRoot: string) {
+export function registerSummaryResource(server: McpServer, repoRoot: string | null) {
   server.registerResource(
     'repo-summary',
     'git://repo/summary',
     {
       description:
-        'Repository snapshot: branch, last commit, total commits, active contributors, top languages, and age.',
+        'Repository snapshot: branch, last commit, total commits, active contributors, top languages, and age. ' +
+        'Returns an error message if Claude Code was not opened inside a git repository.',
       mimeType: 'text/plain',
     },
     async () => {
+      if (!repoRoot) {
+        return {
+          contents: [
+            {
+              uri: 'git://repo/summary',
+              text:
+                '[git-intel] No git repository detected.\n\n' +
+                'To use this resource, open Claude Code inside a git repository directory.\n' +
+                'Alternatively, use the git-intel tools directly with the repo_path parameter.',
+              mimeType: 'text/plain',
+            },
+          ],
+        };
+      }
+
       const parts: string[] = [];
 
       // Current branch

@@ -3,6 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { gitExec } from '../git/executor.js';
 import { textResult, errorResult, formatTable, formatBar } from '../util/formatting.js';
 import { daysAgoString } from '../util/scoring.js';
+import { getEffectiveRepo } from '../util/resolve-repo.js';
 
 interface ContributorProfile {
   name: string;
@@ -18,7 +19,7 @@ interface ContributorProfile {
   coAuthors: Map<string, number>; // author -> shared file count
 }
 
-export function registerContributorStats(server: McpServer, repoRoot: string) {
+export function registerContributorStats(server: McpServer, repoRoot: string | null) {
   server.registerTool(
     'contributor_stats',
     {
@@ -26,8 +27,15 @@ export function registerContributorStats(server: McpServer, repoRoot: string) {
       description:
         'Comprehensive contributor analytics: who is active, what areas they work in, their commit patterns, ' +
         'and collaboration graph. Useful for understanding team dynamics, identifying knowledge silos, ' +
-        'onboarding planning, and workload distribution.',
+        'onboarding planning, and workload distribution. ' +
+        'NOTE: If the server was not started inside a git repo, you MUST provide repo_path.',
       inputSchema: z.object({
+        repo_path: z
+          .string()
+          .optional()
+          .describe(
+            'Absolute path to the git repository to analyze. Required if Claude Code was not opened in a git repo.',
+          ),
         days: z.number().int().positive().default(90).describe('Days to look back (default: 90)'),
         author: z.string().optional().describe('Filter to a specific author name (partial match)'),
       }),
@@ -38,7 +46,8 @@ export function registerContributorStats(server: McpServer, repoRoot: string) {
     },
     async (args) => {
       try {
-        const { days, author } = args;
+        const { repo_path, days, author } = args;
+        const effectiveRepo = await getEffectiveRepo(repo_path, repoRoot);
         const since = `${days} days ago`;
         const nowSec = Math.floor(Date.now() / 1000);
 
@@ -54,7 +63,7 @@ export function registerContributorStats(server: McpServer, repoRoot: string) {
         }
         logArgs.push('--');
 
-        const { stdout } = await gitExec(logArgs, { cwd: repoRoot });
+        const { stdout } = await gitExec(logArgs, { cwd: effectiveRepo });
         if (!stdout.trim()) {
           return textResult(
             `No commits found in the last ${days} days${author ? ` for "${author}"` : ''}.`,
