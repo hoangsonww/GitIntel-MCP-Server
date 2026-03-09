@@ -20,7 +20,7 @@ The CLI accepts one optional argument: the path to the git repository. If omitte
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `tools` | List all 8 tools with parameter names | `tools` |
+| `tools` | List all 12 tools with parameter names | `tools` |
 | `resources` | List all 2 resources with URIs | `resources` |
 | `call <tool> [json]` | Call a tool with optional JSON arguments | `call hotspots {"days": 60}` |
 | `read <uri>` | Read a resource by URI | `read git://repo/summary` |
@@ -175,6 +175,72 @@ call contributor_stats {"days": 365, "path_filter": "src/"}
 | `days` | number | 90 | Time window |
 | `path_filter` | string | — | Filter to files under this path |
 
+#### file_history
+
+Full commit history of a specific file with rename tracking.
+
+```
+call file_history {"path": "src/index.ts"}
+call file_history {"path": "README.md", "days": 180}
+call file_history {"path": "src/tools/hotspots.ts", "days": 90, "limit": 20}
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `repo_path` | string | — | Override default repo |
+| `path` | string | **required** | File path to analyze |
+| `days` | number | 365 | Time window |
+| `limit` | number | 30 | Max commits to return (max: 100) |
+
+#### code_age
+
+Show the age of code in each file — identifies stale vs actively maintained files.
+
+```
+call code_age
+call code_age {"sort": "newest"}
+call code_age {"path_filter": "src/", "limit": 15, "sort": "oldest"}
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `repo_path` | string | — | Override default repo |
+| `path_filter` | string | — | Filter to files under this path |
+| `limit` | number | 30 | Max files to return (max: 100) |
+| `sort` | string | `oldest` | Sort order: `"oldest"` or `"newest"` |
+
+#### commit_patterns
+
+Analyze when and how the team commits — day-of-week, time-of-day, commit sizes, and velocity.
+
+```
+call commit_patterns
+call commit_patterns {"days": 180}
+call commit_patterns {"days": 90, "author": "Alice"}
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `repo_path` | string | — | Override default repo |
+| `days` | number | 90 | Time window |
+| `author` | string | — | Filter to a specific author (exact name match) |
+
+#### branch_risk
+
+Analyze all branches for staleness, divergence, and merge risk.
+
+```
+call branch_risk
+call branch_risk {"base_branch": "main"}
+call branch_risk {"base_branch": "develop", "include_remote": true}
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `repo_path` | string | — | Override default repo |
+| `base_branch` | string | `HEAD` | Branch to compare against |
+| `include_remote` | boolean | `false` | Include remote tracking branches |
+
 ---
 
 ## Reading Resources
@@ -216,6 +282,37 @@ git-intel> call churn {"repo_path": "/home/you/monorepo", "days": 30, "path_filt
 ```
 
 The `~` prefix is expanded to your home directory in `repo_path`.
+
+---
+
+## Tool Categories
+
+```mermaid
+graph TD
+    subgraph Hotspot["Hotspot Analysis"]
+        hotspots["hotspots"]
+        churn["churn"]
+        coupling["coupling"]
+    end
+
+    subgraph Archaeology["Code Archaeology"]
+        file_history["file_history"]
+        code_age["code_age"]
+        complexity_trend["complexity_trend"]
+    end
+
+    subgraph Team["Team Analysis"]
+        knowledge_map["knowledge_map"]
+        contributor_stats["contributor_stats"]
+        commit_patterns["commit_patterns"]
+    end
+
+    subgraph Risk["Risk & Release"]
+        risk_assessment["risk_assessment"]
+        release_notes["release_notes"]
+        branch_risk["branch_risk"]
+    end
+```
 
 ---
 

@@ -11,10 +11,25 @@ import { registerComplexityTrend } from './tools/complexity.js';
 import { registerRiskAssessment } from './tools/risk.js';
 import { registerReleaseNotes } from './tools/release-notes.js';
 import { registerContributorStats } from './tools/contributors.js';
+import { registerFileHistory } from './tools/file-history.js';
+import { registerCodeAge } from './tools/code-age.js';
+import { registerCommitPatterns } from './tools/commit-patterns.js';
+import { registerBranchRisk } from './tools/branch-risk.js';
 import { registerSummaryResource } from './resources/summary.js';
 import { registerActivityResource } from './resources/activity.js';
 import { resolve } from 'node:path';
 import { homedir } from 'node:os';
+
+// Stderr ANSI helpers (stderr goes to humans, not AI clients)
+const isTTY = process.stderr.isTTY !== false;
+const esc = (code: string, t: string) => (isTTY ? `\x1b[${code}m${t}\x1b[0m` : t);
+const sB = (t: string) => esc('1', t);
+const sCyan = (t: string) => esc('36', t);
+const sGreen = (t: string) => esc('32', t);
+const sYellow = (t: string) => esc('33', t);
+const sRed = (t: string) => esc('31', t);
+const sDim = (t: string) => esc('2', t);
+const sTag = sCyan(sB('[mcp-git-intel]'));
 
 function expandHome(p: string): string {
   if (p.startsWith('~/') || p.startsWith('~\\') || p === '~') {
@@ -39,7 +54,7 @@ async function main() {
       gitVersion = info.version;
     } catch {
       process.stderr.write(
-        `[mcp-git-intel] Warning: Could not detect git version. Tools will fail if git is not installed.\n`,
+        `${sTag} ${sYellow('Warning:')} Could not detect git version. Tools will fail if git is not installed.\n`,
       );
     }
   }
@@ -48,11 +63,13 @@ async function main() {
   let repoRoot: string | null = null;
   try {
     repoRoot = await resolveRepoRoot(repoPath);
-    process.stderr.write(`[mcp-git-intel] Git ${gitVersion} | Repo: ${repoRoot}\n`);
+    process.stderr.write(
+      `${sTag} ${sDim('Git')} ${sGreen(gitVersion)} ${sDim('|')} ${sDim('Repo')} ${sB(repoRoot)}\n`,
+    );
   } catch {
     process.stderr.write(
-      `[mcp-git-intel] Git ${gitVersion} | No git repo detected in: ${repoPath}\n` +
-        `[mcp-git-intel] Server will start anyway. Tools require repo_path parameter or open Claude Code in a git repo.\n`,
+      `${sTag} ${sDim('Git')} ${sGreen(gitVersion)} ${sDim('|')} ${sYellow('No repo:')} ${repoPath}\n` +
+        `${sTag} Server will start anyway. Tools require ${sB('repo_path')} parameter or open Claude Code in a git repo.\n`,
     );
   }
 
@@ -79,6 +96,10 @@ async function main() {
   registerRiskAssessment(server, repoRoot);
   registerReleaseNotes(server, repoRoot);
   registerContributorStats(server, repoRoot);
+  registerFileHistory(server, repoRoot);
+  registerCodeAge(server, repoRoot);
+  registerCommitPatterns(server, repoRoot);
+  registerBranchRisk(server, repoRoot);
 
   // Register resources (gracefully degrade when no repo is available)
   registerSummaryResource(server, repoRoot);
@@ -89,17 +110,19 @@ async function main() {
   await server.connect(transport);
 
   if (repoRoot) {
-    process.stderr.write(`[mcp-git-intel] Server running. 8 tools, 2 resources registered.\n`);
+    process.stderr.write(
+      `${sTag} ${sGreen('✓ Running')} ${sDim('—')} ${sB('12')} tools, ${sB('2')} resources\n`,
+    );
   } else {
     process.stderr.write(
-      `[mcp-git-intel] Server running (no default repo). 8 tools, 2 resources registered.\n` +
-        `[mcp-git-intel] Pass repo_path to each tool call, or restart Claude Code inside a git repo.\n`,
+      `${sTag} ${sYellow('⚠ Running')} ${sDim('(no default repo) —')} ${sB('12')} tools, ${sB('2')} resources\n` +
+        `${sTag} Pass ${sB('repo_path')} to each tool call, or restart Claude Code inside a git repo.\n`,
     );
   }
 
   // Graceful shutdown
   const shutdown = async () => {
-    process.stderr.write('[mcp-git-intel] Shutting down...\n');
+    process.stderr.write(`${sTag} ${sDim('Shutting down...')}\n`);
     await server.close();
     process.exit(0);
   };
@@ -109,6 +132,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  process.stderr.write(`[mcp-git-intel] Fatal error: ${err}\n`);
+  process.stderr.write(`${sTag} ${sRed('Fatal:')} ${err}\n`);
   process.exit(1);
 });

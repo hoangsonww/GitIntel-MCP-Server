@@ -32,7 +32,7 @@ graph TD
         direction TB
         Transport["StdioServerTransport"]
         McpServer["McpServer (SDK)"]
-        Tools["8 Tool Handlers"]
+        Tools["12 Tool Handlers"]
         Resources["2 Resource Handlers"]
         GitLayer["Git Layer<br/>executor, parser, repo"]
         UtilLayer["Util Layer<br/>scoring, formatting"]
@@ -103,6 +103,10 @@ graph TD
         risk["tools/risk.ts"]
         release["tools/release-notes.ts"]
         contributors["tools/contributors.ts"]
+        fileHistory["tools/file-history.ts"]
+        codeAge["tools/code-age.ts"]
+        commitPatterns["tools/commit-patterns.ts"]
+        branchRisk["tools/branch-risk.ts"]
     end
 
     subgraph "Resources Layer"
@@ -123,6 +127,7 @@ graph TD
     end
 
     index --> hotspots & churn & coupling & knowledge & complexity & risk & release & contributors
+    index --> fileHistory & codeAge & commitPatterns & branchRisk
     index --> summary & activity
 
     hotspots --> executor & repo & parser & formatting & scoring & resolveRepo
@@ -133,6 +138,10 @@ graph TD
     risk --> executor & repo & formatting & scoring & resolveRepo
     release --> executor & repo & parser & formatting & resolveRepo
     contributors --> executor & formatting & scoring & resolveRepo
+    fileHistory --> executor & repo & formatting & resolveRepo
+    codeAge --> executor & repo & formatting & scoring & resolveRepo
+    commitPatterns --> executor & formatting & resolveRepo
+    branchRisk --> executor & formatting & scoring & resolveRepo
 
     summary --> executor
     activity --> executor
@@ -231,6 +240,10 @@ Tool descriptions include a `NOTE` prompting the AI agent to provide `repo_path`
 | `risk_assessment` | `diff --numstat` + `log --name-only` | Combine hotspot history, size, sensitivity, spread |
 | `release_notes` | `log` with range | Parse conventional commits, group by type/scope/author |
 | `contributor_stats` | `log --numstat` | Per-author profiles with collaboration graph |
+| `file_history` | `log --follow --numstat` | Single file evolution with rename tracking |
+| `code_age` | `ls-files` + `log --name-only --diff-filter` | Last-modified date per file, age distribution |
+| `commit_patterns` | `log --shortstat` | Timestamp and size distribution analysis |
+| `branch_risk` | `branch` + `rev-list --left-right --count` | Per-branch staleness and divergence from base |
 
 ### Util Layer (`src/util/`)
 
@@ -395,16 +408,21 @@ graph TD
         CS["contributor_stats<br/>git log --numstat"]
         CO["coupling<br/>git log --name-only"]
         RN["release_notes<br/>git log (range)"]
+        FH["file_history<br/>git log --follow --numstat"]
+        CP["commit_patterns<br/>git log --shortstat"]
     end
 
     subgraph "Multi-Command Tools"
         CT["complexity_trend<br/>1. git log (history)<br/>2. git show hash:path × N"]
         RA["risk_assessment<br/>1. git diff --numstat<br/>2. git log --name-only"]
+        CA["code_age<br/>1. git ls-files<br/>2. git log --name-only --diff-filter"]
+        BR["branch_risk<br/>1. git branch<br/>2. git rev-list --count × N"]
     end
 
-    H & CH & KM & CS & CO & RN -->|"1 git call"| Fast["Fast path<br/>< 1s typical"]
+    H & CH & KM & CS & CO & RN & FH & CP -->|"1 git call"| Fast["Fast path<br/>< 1s typical"]
     CT -->|"1 + N git calls"| Slower["Sampled path<br/>N = sample points (default 10)"]
-    RA -->|"2 git calls"| Medium["Two-pass path<br/>diff + history lookup"]
+    RA & CA -->|"2 git calls"| Medium["Two-pass path<br/>diff/ls + history lookup"]
+    BR -->|"1 + N git calls"| BranchPath["Per-branch path<br/>N = number of branches"]
 ```
 
 ---
@@ -469,7 +487,7 @@ graph TD
     ResolveRoot -->|"valid"| HasRepo["repoRoot = resolved path"]
     NoRepo --> CreateServer["Create McpServer"]
     HasRepo --> CreateServer
-    CreateServer --> RegisterTools["Register 8 tools\n(repoRoot may be null)"]
+    CreateServer --> RegisterTools["Register 12 tools\n(repoRoot may be null)"]
     RegisterTools --> RegisterResources["Register 2 resources\n(graceful degradation)"]
     RegisterResources --> Connect["Connect StdioServerTransport"]
     Connect --> Running["Server running\nwaiting for JSON-RPC"]
@@ -492,7 +510,7 @@ sequenceDiagram
     Main->>Main: Resolve repoRoot (may be null)
     Main->>SDK: new McpServer("git-intel")
 
-    loop 8 tools
+    loop 12 tools
         Main->>T: register*(server, repoRoot)
         T->>SDK: server.tool(name, schema, handler)
         Note over T,SDK: repoRoot captured in closure<br/>(null = require repo_path per call)
@@ -530,7 +548,7 @@ graph LR
     end
 
     subgraph "Integration Tests"
-        Smoke["smoke-test.ts<br/>Spawns real server<br/>Calls all 8 tools<br/>Reads both resources"]
+        Smoke["smoke-test.ts<br/>Spawns real server<br/>Calls all 12 tools<br/>Reads both resources"]
     end
 
     subgraph "Manual Testing"

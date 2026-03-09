@@ -1,6 +1,6 @@
 # Tool Reference
 
-Detailed documentation for all 8 tools and 2 resources provided by `mcp-git-intel`.
+Detailed documentation for all 12 tools and 2 resources provided by `mcp-git-intel`.
 
 Every tool returns **formatted text** with tables, score bars `[████████░░] 80`, and interpretation guidance. Not raw git output.
 
@@ -37,6 +37,10 @@ flowchart LR
 - [risk_assessment](#risk_assessment) -- Change risk scoring
 - [release_notes](#release_notes) -- Changelog generation
 - [contributor_stats](#contributor_stats) -- Team dynamics
+- [file_history](#file_history) -- Single file evolution
+- [code_age](#code_age) -- File staleness analysis
+- [commit_patterns](#commit_patterns) -- Work pattern analytics
+- [branch_risk](#branch_risk) -- Branch health and divergence
 - [Resources](#resources) -- `git://repo/summary` and `git://repo/activity`
 
 ---
@@ -522,6 +526,222 @@ When filtering to a single author (`author: "Alice"`), the output includes a det
 - **Top Collaborations**: Based on shared file changes (files touched by both authors). Higher numbers indicate closer working relationship.
 - **Focus Areas**: Top-level directories where the author commits most. Shows specialization patterns.
 - **Commit Time Pattern**: When the author typically commits. Useful for understanding work patterns and timezone.
+
+---
+
+## file_history
+
+**File History** -- Show the full commit history of a specific file.
+
+### Use Case
+
+Trace why a file looks the way it does. Find when a bug was introduced, who made which changes, and how a module evolved over time. Uses `--follow` to track file renames.
+
+### Input Schema
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to git repo. Required if not in a git repo. |
+| `path` | string (**required**) | -- | File path to analyze (e.g. `"src/index.ts"`) |
+| `days` | integer (>0) | `365` | Number of days to look back |
+| `limit` | integer (1-100) | `30` | Max commits to return |
+
+### Example Output
+
+```
+## File History: src/api/routes/auth.ts (last 365 days)
+
+**12 commits** by 3 authors | +534 / -489 lines
+
+Date        Commit    Author   +Lines  -Lines  Subject
+----------  --------  -------  ------  ------  ------------------------------------------------------------
+2026-03-09  b33b97c0  Alice      +228     -11  feat: add OAuth2 PKCE flow
+2026-03-05  75c46aba  Bob          +1      -1  fix: null check on token refresh
+2026-03-04  1175a01c  Charlie    +120     -80  refactor: extract middleware
+2026-03-04  3fc3df49  Alice       +10      -1  fix: session expiry edge case
+...
+```
+
+### Interpretation Guide
+
+- **+Lines / -Lines**: Per-commit additions and deletions for this specific file.
+- **--follow**: Tracks the file across renames, so you see history even if the file was moved.
+- Use this to answer "why does this file look like this?" by tracing the commit trail.
+- Cross-reference with `knowledge_map` to find who understands the file best currently.
+
+---
+
+## code_age
+
+**Code Age Analysis** -- Show when each file was last modified.
+
+### Use Case
+
+Identify stale files that haven't been touched in months or years — potential dead code, abandoned features, or stable infrastructure. Useful for cleanup planning, onboarding new developers, and understanding which parts of the codebase are actively evolving versus frozen.
+
+### Input Schema
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to git repo. Required if not in a git repo. |
+| `path_filter` | string (optional) | -- | Filter to files under this path (e.g. `"src/"`) |
+| `limit` | integer (1-100) | `30` | Max files to return |
+| `sort` | `"oldest"` \| `"newest"` | `"oldest"` | Sort by stalest first or most recent first |
+
+### Example Output
+
+```
+## Code Age Analysis: src/
+
+**142 files** analyzed | Showing stalest 15
+
+### Age Distribution
+
+- Not touched in **>90 days**: 45 files (32%)
+- Not touched in **>180 days**: 12 files (8%)
+- Not touched in **>1 year**: 3 files (2%)
+
+File                              Last Modified  Age       Author   Staleness
+--------------------------------  -------------  --------  -------  ----------------
+src/legacy/old-parser.ts          2025-01-15     1.2 years Alice    [██████████] 100
+src/utils/deprecated-helper.ts    2025-03-22     11 months Bob      [████████░░] 82
+src/config/old-env.ts             2025-06-10     9 months  Charlie  [██████░░░░] 65
+...
+
+
+**Interpretation**: High-staleness files may be stable infrastructure that rarely needs changes,
+or abandoned code that should be reviewed for removal. Cross-reference with hotspots to distinguish the two.
+```
+
+### Interpretation Guide
+
+- **Age Distribution**: Shows what percentage of files are untouched beyond various thresholds.
+- **Staleness bar**: Normalized relative to the stalest file in the result set.
+- **Sort = oldest**: Find dead code candidates and abandoned features.
+- **Sort = newest**: Find the most actively maintained files.
+- Cross-reference with `hotspots` — a file that's both old AND a hotspot likely has deeper issues than one that's old but stable.
+
+---
+
+## commit_patterns
+
+**Commit Patterns** -- Analyze when and how the team commits.
+
+### Use Case
+
+Reveal work patterns: weekend deployments, late-night hotfixes, commit size distribution, and weekly velocity trends. Useful for identifying burnout risk, understanding team rhythms, and improving code review practices.
+
+### Input Schema
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to git repo. Required if not in a git repo. |
+| `days` | integer (>0) | `90` | Number of days to look back |
+| `author` | string (optional) | -- | Filter to a specific author (exact match) |
+
+### Example Output
+
+```
+## Commit Patterns (last 90 days)
+
+**85 commits** across 12 weeks | Avg: 7.1 commits/week
+
+### Day of Week
+
+Day  Commits  Distribution
+---  -------  --------------------
+Sun        2  ██
+Mon       18  ████████████████████
+Tue       15  ████████████████
+Wed       20  ████████████████████
+Thu       16  █████████████████
+Fri       12  █████████████
+Sat        2  ██
+
+### Time of Day
+
+Time Block         Commits  Distribution
+-----------------  -------  --------------------
+00-03 (night)            1  ██
+04-07 (early)            0
+08-11 (morning)         22  ████████████████████
+12-15 (afternoon)       35  ████████████████████
+16-19 (evening)         20  ██████████████████
+20-23 (late)             7  ██████
+
+### Commit Size Distribution
+
+Size    Lines Changed  Count  Pct
+------  -------------  -----  ---
+Small   ≤20               35  41%
+Medium  21-100            28  33%
+Large   101-500           15  18%
+Huge    >500               7   8%
+
+### Insights
+
+- ⚠️ **8% of commits are huge (>500 lines)** — consider smaller, more reviewable changes.
+```
+
+### Interpretation Guide
+
+- **Day of Week**: Identifies weekend work (potential burnout or release pressure).
+- **Time of Day**: Shows when the team is most active. Late-night commits may indicate rushed fixes.
+- **Commit Size Distribution**: Huge commits (>500 lines) are harder to review and more likely to contain bugs.
+- **Insights**: Auto-generated warnings for concerning patterns (weekend >20%, late-night >25%, huge >30%).
+- Filter by `author` to analyze individual work patterns.
+
+---
+
+## branch_risk
+
+**Branch Risk Analysis** -- Analyze branches for staleness and divergence.
+
+### Use Case
+
+Identify stale branches that should be cleaned up, branches that have diverged significantly from the base branch (merge conflict risk), and branches with no recent activity. Essential for branch hygiene and merge planning.
+
+### Input Schema
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to git repo. Required if not in a git repo. |
+| `base_branch` | string | `"HEAD"` | Branch to compare against (e.g. `"main"`, `"master"`) |
+| `include_remote` | boolean | `false` | Include remote tracking branches |
+
+### Example Output
+
+```
+## Branch Risk Analysis (vs main)
+
+**8 branches** | Current: `feature/new-auth`
+
+Branch                   Last Activity  Age    Ahead  Behind  Author   Staleness
+-----------------------  -------------  -----  -----  ------  -------  ----------------
+fix/legacy-parser        2025-11-20     3mo        3     -85  Alice    [██████████] 100
+experiment/new-cache     2026-01-15     2mo        8     -42  Bob      [██████░░░░] 60
+* feature/new-auth       2026-03-09     today    +12       0  Charlie  [░░░░░░░░░░] 0
+main                     2026-03-09     today      0       0  Alice    [░░░░░░░░░░] 0
+...
+
+### Recommendations
+
+- **2 stale branches** (>90 days): `fix/legacy-parser`, `experiment/new-cache`
+- **1 highly diverged branch** (>20 commits ahead or behind): `fix/legacy-parser` (+3/-85)
+- **8 total branches** — consider cleaning up merged or abandoned branches.
+
+
+**Staleness bar**: Higher = more stale. Stale branches accumulate merge risk and clutter.
+```
+
+### Interpretation Guide
+
+- **Ahead**: Commits on this branch not in the base. Higher = more work to merge.
+- **Behind**: Commits on the base not in this branch. Higher = more potential conflicts.
+- **Staleness**: Age relative to the most stale branch. Used for visual comparison.
+- **Stale (>90 days)**: Branches inactive for 3+ months. Likely abandoned or forgotten.
+- **Highly diverged (>20)**: Branches with significant ahead/behind counts. Merge will be complex.
+- Use `include_remote: true` to audit remote branches that may be cluttering the remote.
 
 ---
 

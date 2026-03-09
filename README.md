@@ -47,7 +47,7 @@ All communication happens over **stdio** using the Model Context Protocol. The s
 
 ## Tools
 
-8 analysis tools, each returning formatted tables, score bars, and actionable recommendations -- not raw git output.
+12 analysis tools, each returning formatted tables, score bars, and actionable recommendations -- not raw git output.
 
 ```mermaid
 graph TD
@@ -62,10 +62,16 @@ graph TD
     subgraph "Team Analysis"
         KM[knowledge_map<br/>Who knows what]
         CS[contributor_stats<br/>Team dynamics]
+        CP[commit_patterns<br/>Work patterns]
     end
     subgraph "Risk & Release"
         RA[risk_assessment<br/>Change risk scoring]
         RN[release_notes<br/>Changelog generation]
+        BR[branch_risk<br/>Branch health]
+    end
+    subgraph "Code Archaeology"
+        FH[file_history<br/>File evolution]
+        CA[code_age<br/>Staleness map]
     end
 ```
 
@@ -79,6 +85,10 @@ graph TD
 | `risk_assessment` | Risk score (0-100) for uncommitted or committed changes | Combines hotspot history, size, sensitivity, spread |
 | `release_notes` | Structured changelog from conventional commits | Groups by type, extracts breaking changes and PR refs |
 | `contributor_stats` | Team dynamics, collaboration graph, knowledge silos | Workload distribution, onboarding planning |
+| `file_history` | Full commit history of a single file with rename tracking | Trace why a file looks the way it does |
+| `code_age` | Age map showing when each file was last modified | Find dead code, abandoned features, stable infrastructure |
+| `commit_patterns` | Day-of-week, hour-of-day, commit size distributions | Spot weekend work, late-night hotfixes, oversized commits |
+| `branch_risk` | Branch staleness, divergence, and merge risk analysis | Branch hygiene, cleanup candidates, merge planning |
 
 ## Data Pipeline
 
@@ -217,7 +227,7 @@ flowchart TD
     Start["Server starts"] --> CheckRepo{"Is cwd a\ngit repo?"}
     CheckRepo -->|Yes| Default["Set as default repo\nAll tools work immediately"]
     CheckRepo -->|No| NoDefault["Start with no default\nTools require repo_path"]
-    Default --> Ready["Server ready\n8 tools, 2 resources"]
+    Default --> Ready["Server ready\n12 tools, 2 resources"]
     NoDefault --> Ready
     Ready --> Call{"Tool called"}
     Call --> HasArg{"repo_path\nprovided?"}
@@ -262,6 +272,21 @@ Once registered, the tools are available through natural language. You do not ca
 **Understand team dynamics:**
 > "Show me contributor statistics for the last 6 months"
 > "Who are the top collaborators and where are the knowledge silos?"
+
+**Trace a file's evolution:**
+> "Show me the full history of src/auth/login.ts"
+
+**Find stale or abandoned code:**
+> "What are the oldest files in the src/ directory?"
+> "Show me code age analysis for the project"
+
+**Analyze work patterns:**
+> "What are the commit patterns for the last 3 months?"
+> "When does the team usually commit?"
+
+**Branch hygiene:**
+> "Which branches are stale or highly diverged?"
+> "Show me branch risk analysis against main"
 
 **Full repo analysis:**
 > "Using git-intel, give me a comprehensive analysis of this repository"
@@ -358,7 +383,7 @@ npm run cli ~/projects/myapp   # Analyze a specific repo
 
 ```
 git-intel> tools
-  Available tools (8):
+  Available tools (12):
   hotspots               Identify files that change most frequently...
                          params: repo_path, days, limit, path_filter
   churn                  Analyze code churn...
@@ -466,6 +491,10 @@ src/
     risk.ts             Multi-factor risk assessment
     release-notes.ts    Changelog from conventional commits
     contributors.ts     Contributor analytics and collaboration
+    file-history.ts     Single-file evolution with rename tracking
+    code-age.ts         File staleness and age distribution
+    commit-patterns.ts  Work pattern analytics (time, size)
+    branch-risk.ts      Branch staleness and divergence detection
   resources/
     summary.ts          Repository snapshot resource (graceful degradation)
     activity.ts         Recent commit activity feed (graceful degradation)

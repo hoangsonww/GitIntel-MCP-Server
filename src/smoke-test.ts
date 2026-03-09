@@ -9,6 +9,25 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { resolve } from 'node:path';
 import { homedir } from 'node:os';
+import {
+  bold,
+  dim,
+  cyan,
+  green,
+  yellow,
+  red,
+  magenta,
+  gray,
+  brightCyan,
+  success,
+  error,
+  warn,
+  muted,
+  highlight,
+  boxed,
+  hr,
+  colorizeOutput,
+} from './util/colors.js';
 
 function expandHome(p: string): string {
   if (p.startsWith('~/') || p.startsWith('~\\') || p === '~') {
@@ -17,14 +36,26 @@ function expandHome(p: string): string {
   return resolve(p);
 }
 
+function formatElapsed(ms: number): string {
+  if (ms < 100) return success(`${ms}ms`);
+  if (ms < 1000) return green(`${ms}ms`);
+  if (ms < 3000) return yellow(`${(ms / 1000).toFixed(1)}s`);
+  return warn(`${(ms / 1000).toFixed(1)}s`);
+}
+
 async function main() {
   const repoPath = expandHome(process.argv[2] || process.cwd());
   const serverScript = resolve(import.meta.dirname, 'index.ts');
 
-  console.log(`\n${'='.repeat(70)}`);
-  console.log(`  mcp-git-intel Smoke Test`);
-  console.log(`  Repo: ${repoPath}`);
-  console.log(`${'='.repeat(70)}\n`);
+  const bannerLines = [
+    bold(brightCyan('  ⬡  mcp-git-intel Smoke Test')),
+    `     ${dim('Running all tools & resources against a live repo')}`,
+    '',
+    `  ${gray('Repo')}  ${repoPath}`,
+  ];
+  console.log('\n' + boxed(bannerLines, 66, cyan));
+
+  console.log(dim('\n  Connecting to server...'));
 
   const transport = new StdioClientTransport({
     command: 'npx',
@@ -34,15 +65,19 @@ async function main() {
 
   const client = new Client({ name: 'smoke-test', version: '1.0.0' });
   await client.connect(transport);
-  console.log('Connected to server.\n');
+  console.log(success('  Connected.\n'));
 
   // List tools
   const { tools } = await client.listTools();
-  console.log(`Registered tools: ${tools.map((t) => t.name).join(', ')}\n`);
+  console.log(
+    `  ${bold('Tools')} ${muted(`(${tools.length})`)}  ${dim(tools.map((t) => t.name).join(', '))}\n`,
+  );
 
   // List resources
   const { resources } = await client.listResources();
-  console.log(`Registered resources: ${resources.map((r) => r.uri).join(', ')}\n`);
+  console.log(
+    `  ${bold('Resources')} ${muted(`(${resources.length})`)}  ${dim(resources.map((r) => r.uri).join(', '))}\n`,
+  );
 
   // Test each tool
   const toolCalls: Array<{ name: string; args: Record<string, unknown> }> = [
@@ -53,13 +88,19 @@ async function main() {
     { name: 'complexity_trend', args: { path: 'README.md', days: 365, samples: 5 } },
     { name: 'risk_assessment', args: {} },
     { name: 'contributor_stats', args: { days: 365 } },
+    { name: 'file_history', args: { path: 'README.md', days: 365, limit: 10 } },
+    { name: 'code_age', args: { limit: 15, sort: 'oldest' } },
+    { name: 'commit_patterns', args: { days: 365 } },
+    { name: 'branch_risk', args: { base_branch: 'HEAD' } },
   ];
 
+  let passed = 0;
+  let failed = 0;
+
   for (const { name, args } of toolCalls) {
-    console.log(`${'─'.repeat(70)}`);
-    console.log(`TOOL: ${name}`);
-    console.log(`ARGS: ${JSON.stringify(args)}`);
-    console.log(`${'─'.repeat(70)}`);
+    console.log(hr(66));
+    const argsStr = Object.keys(args).length > 0 ? gray(` ${JSON.stringify(args)}`) : '';
+    console.log(`  ${cyan('▶')} ${bold(name)}${argsStr}`);
 
     const start = Date.now();
     try {
@@ -67,70 +108,104 @@ async function main() {
       const elapsed = Date.now() - start;
 
       if (result.isError) {
-        console.log(`[ERROR in ${elapsed}ms]`);
+        console.log(`  ${error('✗ FAIL')} ${dim('in')} ${formatElapsed(elapsed)}`);
+        failed++;
       } else {
-        console.log(`[OK in ${elapsed}ms]`);
+        console.log(`  ${success('✓ PASS')} ${dim('in')} ${formatElapsed(elapsed)}`);
+        passed++;
       }
 
       for (const content of result.content as Array<{ type: string; text?: string }>) {
         if (content.type === 'text' && content.text) {
-          console.log(content.text);
+          console.log(colorizeOutput(content.text));
         }
       }
     } catch (err: unknown) {
-      console.log(`[EXCEPTION] ${err instanceof Error ? err.message : String(err)}`);
+      console.log(
+        `  ${error('✗ EXCEPTION')} ${red(err instanceof Error ? err.message : String(err))}`,
+      );
+      failed++;
     }
     console.log('');
   }
 
-  // Test release_notes (needs tags)
-  console.log(`${'─'.repeat(70)}`);
-  console.log(`TOOL: release_notes`);
+  // Test release_notes
+  console.log(hr(66));
+  console.log(
+    `  ${cyan('▶')} ${bold('release_notes')} ${gray('{"from_ref": "HEAD~10", "to_ref": "HEAD"}')}`,
+  );
   try {
-    // Find first and latest tags or use commit range
+    const start = Date.now();
     const result = await client.callTool({
       name: 'release_notes',
       arguments: { from_ref: 'HEAD~10', to_ref: 'HEAD' },
     });
-    console.log(`ARGS: {"from_ref": "HEAD~10", "to_ref": "HEAD"}`);
-    console.log(`${'─'.repeat(70)}`);
+    const elapsed = Date.now() - start;
+
+    if (result.isError) {
+      console.log(`  ${error('✗ FAIL')} ${dim('in')} ${formatElapsed(elapsed)}`);
+      failed++;
+    } else {
+      console.log(`  ${success('✓ PASS')} ${dim('in')} ${formatElapsed(elapsed)}`);
+      passed++;
+    }
+
     for (const content of result.content as Array<{ type: string; text?: string }>) {
       if (content.type === 'text' && content.text) {
-        console.log(content.text);
+        console.log(colorizeOutput(content.text));
       }
     }
   } catch (err: unknown) {
-    console.log(`[EXCEPTION] ${err instanceof Error ? err.message : String(err)}`);
+    console.log(
+      `  ${error('✗ EXCEPTION')} ${red(err instanceof Error ? err.message : String(err))}`,
+    );
+    failed++;
   }
   console.log('');
 
   // Test resources
   for (const resource of resources) {
-    console.log(`${'─'.repeat(70)}`);
-    console.log(`RESOURCE: ${resource.uri}`);
-    console.log(`${'─'.repeat(70)}`);
+    console.log(hr(66));
+    console.log(`  ${green('◆')} ${bold('RESOURCE')} ${highlight(resource.uri)}`);
 
     try {
+      const start = Date.now();
       const result = await client.readResource({ uri: resource.uri });
+      const elapsed = Date.now() - start;
+      console.log(`  ${success('✓ PASS')} ${dim('in')} ${formatElapsed(elapsed)}`);
+      passed++;
+
       for (const content of result.contents) {
         if ('text' in content && content.text) {
-          console.log(content.text);
+          console.log(colorizeOutput(content.text));
         }
       }
     } catch (err: unknown) {
-      console.log(`[EXCEPTION] ${err instanceof Error ? err.message : String(err)}`);
+      console.log(
+        `  ${error('✗ EXCEPTION')} ${red(err instanceof Error ? err.message : String(err))}`,
+      );
+      failed++;
     }
     console.log('');
   }
 
-  console.log(`${'='.repeat(70)}`);
-  console.log(`  Smoke test complete.`);
-  console.log(`${'='.repeat(70)}\n`);
+  // Summary
+  console.log(hr(66));
+  const total = passed + failed;
+  const statusColor = failed === 0 ? green : red;
+  const summaryLines = [
+    bold(brightCyan('  Smoke Test Complete')),
+    '',
+    `  ${success(`${passed} passed`)}  ${failed > 0 ? error(`${failed} failed`) : dim('0 failed')}  ${muted(`${total} total`)}`,
+  ];
+  console.log(boxed(summaryLines, 40, statusColor));
+  console.log('');
 
   await client.close();
+  process.exit(failed > 0 ? 1 : 0);
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(error(`Fatal: ${err}`));
   process.exit(1);
 });
