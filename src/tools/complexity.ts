@@ -3,6 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { gitExec, gitLines } from '../git/executor.js';
 import { validatePathFilter } from '../git/repo.js';
 import { textResult, errorResult, formatTable } from '../util/formatting.js';
+import { getEffectiveRepo } from '../util/resolve-repo.js';
 
 interface ComplexitySnapshot {
   hash: string;
@@ -14,15 +15,22 @@ interface ComplexitySnapshot {
   functionCount: number;
 }
 
-export function registerComplexityTrend(server: McpServer, repoRoot: string) {
+export function registerComplexityTrend(server: McpServer, repoRoot: string | null) {
   server.registerTool(
     'complexity_trend',
     {
       title: 'Complexity Trend',
       description:
         "Track how a file's complexity has changed over time by sampling its state at regular intervals in git history. " +
-        'Identifies files growing out of control, complexity spikes from specific commits, and files that need splitting.',
+        'Identifies files growing out of control, complexity spikes from specific commits, and files that need splitting. ' +
+        'NOTE: If the server was not started inside a git repo, you MUST provide repo_path.',
       inputSchema: z.object({
+        repo_path: z
+          .string()
+          .optional()
+          .describe(
+            'Absolute path to the git repository to analyze. Required if Claude Code was not opened in a git repo.',
+          ),
         path: z.string().describe('File path to analyze (relative to repo root)'),
         samples: z
           .number()
@@ -40,14 +48,15 @@ export function registerComplexityTrend(server: McpServer, repoRoot: string) {
     },
     async (args) => {
       try {
-        const { path, samples, days } = args;
-        const cleanPath = validatePathFilter(path, repoRoot);
+        const { repo_path, path, samples, days } = args;
+        const effectiveRepo = await getEffectiveRepo(repo_path, repoRoot);
+        const cleanPath = validatePathFilter(path, effectiveRepo);
         const since = `${days} days ago`;
 
         // Get commits that touched this file
         const commitLines = await gitLines(
           ['log', '--format=%H|%aI', '--no-merges', `--since=${since}`, '--', cleanPath],
-          { cwd: repoRoot },
+          { cwd: effectiveRepo },
         );
 
         if (commitLines.length === 0) {
@@ -75,7 +84,7 @@ export function registerComplexityTrend(server: McpServer, repoRoot: string) {
         const snapshots: ComplexitySnapshot[] = [];
         for (const { hash, date } of sampled) {
           const { stdout: fileContent } = await gitExec(['show', `${hash}:${cleanPath}`], {
-            cwd: repoRoot,
+            cwd: effectiveRepo,
           });
 
           if (!fileContent) continue;

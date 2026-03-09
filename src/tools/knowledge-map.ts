@@ -4,6 +4,7 @@ import { gitExec } from '../git/executor.js';
 import { validatePathFilter } from '../git/repo.js';
 import { textResult, errorResult, formatTable, formatBar } from '../util/formatting.js';
 import { knowledgeScore, daysAgoString } from '../util/scoring.js';
+import { getEffectiveRepo } from '../util/resolve-repo.js';
 
 interface AuthorStats {
   name: string;
@@ -15,15 +16,22 @@ interface AuthorStats {
   lastCommit: number;
 }
 
-export function registerKnowledgeMap(server: McpServer, repoRoot: string) {
+export function registerKnowledgeMap(server: McpServer, repoRoot: string | null) {
   server.registerTool(
     'knowledge_map',
     {
       title: 'Knowledge Map',
       description:
         'Show who knows a file or directory best, weighted by recency, volume of changes, and commit frequency. ' +
-        'Use this to find the right reviewer for a PR, identify knowledge silos, or plan for team transitions.',
+        'Use this to find the right reviewer for a PR, identify knowledge silos, or plan for team transitions. ' +
+        'NOTE: If the server was not started inside a git repo, you MUST provide repo_path.',
       inputSchema: z.object({
+        repo_path: z
+          .string()
+          .optional()
+          .describe(
+            'Absolute path to the git repository to analyze. Required if Claude Code was not opened in a git repo.',
+          ),
         path: z.string().describe('File or directory path to analyze (relative to repo root)'),
         days: z.number().int().positive().default(365).describe('Days to look back (default: 365)'),
       }),
@@ -34,8 +42,9 @@ export function registerKnowledgeMap(server: McpServer, repoRoot: string) {
     },
     async (args) => {
       try {
-        const { path, days } = args;
-        const cleanPath = validatePathFilter(path, repoRoot);
+        const { repo_path, path, days } = args;
+        const effectiveRepo = await getEffectiveRepo(repo_path, repoRoot);
+        const cleanPath = validatePathFilter(path, effectiveRepo);
         const since = `${days} days ago`;
         const nowSec = Math.floor(Date.now() / 1000);
 
@@ -50,7 +59,7 @@ export function registerKnowledgeMap(server: McpServer, repoRoot: string) {
           cleanPath,
         ];
 
-        const { stdout } = await gitExec(logArgs, { cwd: repoRoot });
+        const { stdout } = await gitExec(logArgs, { cwd: effectiveRepo });
         if (!stdout.trim()) {
           return textResult(`No commits found for "${path}" in the last ${days} days.`);
         }

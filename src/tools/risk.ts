@@ -4,6 +4,7 @@ import { gitExec, gitLines } from '../git/executor.js';
 import { validateRef } from '../git/repo.js';
 import { textResult, errorResult, formatTable, formatBar } from '../util/formatting.js';
 import { riskScore, normalize } from '../util/scoring.js';
+import { getEffectiveRepo } from '../util/resolve-repo.js';
 
 interface FileRisk {
   file: string;
@@ -11,7 +12,7 @@ interface FileRisk {
   factors: Record<string, number>;
 }
 
-export function registerRiskAssessment(server: McpServer, repoRoot: string) {
+export function registerRiskAssessment(server: McpServer, repoRoot: string | null) {
   server.registerTool(
     'risk_assessment',
     {
@@ -19,8 +20,15 @@ export function registerRiskAssessment(server: McpServer, repoRoot: string) {
       description:
         'Assess the risk profile of uncommitted changes or a specific commit range. Combines multiple signals: ' +
         'file hotspot history, change size, number of files, author familiarity, and file type sensitivity. ' +
-        'Returns a score 0-100 with per-file breakdown and actionable recommendations.',
+        'Returns a score 0-100 with per-file breakdown and actionable recommendations. ' +
+        'NOTE: If the server was not started inside a git repo, you MUST provide repo_path.',
       inputSchema: z.object({
+        repo_path: z
+          .string()
+          .optional()
+          .describe(
+            'Absolute path to the git repository to analyze. Required if Claude Code was not opened in a git repo.',
+          ),
         ref_range: z
           .string()
           .optional()
@@ -35,7 +43,8 @@ export function registerRiskAssessment(server: McpServer, repoRoot: string) {
     },
     async (args) => {
       try {
-        const { ref_range } = args;
+        const { repo_path, ref_range } = args;
+        const effectiveRepo = await getEffectiveRepo(repo_path, repoRoot);
 
         // Get changed files
         let diffArgs: string[];
@@ -51,7 +60,7 @@ export function registerRiskAssessment(server: McpServer, repoRoot: string) {
           rangeLabel = 'uncommitted changes';
         }
 
-        const { stdout: diffOutput } = await gitExec(diffArgs, { cwd: repoRoot });
+        const { stdout: diffOutput } = await gitExec(diffArgs, { cwd: effectiveRepo });
 
         if (!diffOutput.trim()) {
           return textResult(`No changes found for: ${rangeLabel}`);
@@ -80,7 +89,7 @@ export function registerRiskAssessment(server: McpServer, repoRoot: string) {
         const hotspotCounts = new Map<string, number>();
         const { stdout: hotspotLog } = await gitExec(
           ['log', '--format=', '--name-only', '--no-merges', '--since=90 days ago', '--'],
-          { cwd: repoRoot },
+          { cwd: effectiveRepo },
         );
         for (const line of hotspotLog.split('\n')) {
           const file = line.trim();

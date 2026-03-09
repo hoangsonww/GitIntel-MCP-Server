@@ -5,15 +5,22 @@ import { validatePathFilter } from '../git/repo.js';
 import { getLogFormat, parseLog } from '../git/parser.js';
 import { textResult, errorResult, formatTable, formatBar } from '../util/formatting.js';
 import { normalize } from '../util/scoring.js';
+import { getEffectiveRepo } from '../util/resolve-repo.js';
 
-export function registerHotspots(server: McpServer, repoRoot: string) {
+export function registerHotspots(server: McpServer, repoRoot: string | null) {
   server.registerTool(
     'hotspots',
     {
       title: 'Change Hotspots',
       description:
-        'Find files that change most frequently. High change frequency correlates with defect density — the top 4% of files by change frequency typically contain 50%+ of bugs. Use this to identify files that need refactoring, better test coverage, or architectural attention.',
+        'Find files that change most frequently. High change frequency correlates with defect density — the top 4% of files by change frequency typically contain 50%+ of bugs. Use this to identify files that need refactoring, better test coverage, or architectural attention. NOTE: If the server was not started inside a git repo, you MUST provide repo_path.',
       inputSchema: z.object({
+        repo_path: z
+          .string()
+          .optional()
+          .describe(
+            'Absolute path to the git repository to analyze. Required if Claude Code was not opened in a git repo.',
+          ),
         days: z
           .number()
           .int()
@@ -39,12 +46,13 @@ export function registerHotspots(server: McpServer, repoRoot: string) {
     },
     async (args) => {
       try {
-        const { days, limit, path_filter } = args;
+        const { repo_path, days, limit, path_filter } = args;
+        const effectiveRepo = await getEffectiveRepo(repo_path, repoRoot);
         const since = `${days} days ago`;
 
         let pathArg: string | undefined;
         if (path_filter) {
-          pathArg = validatePathFilter(path_filter, repoRoot);
+          pathArg = validatePathFilter(path_filter, effectiveRepo);
         }
 
         // Get log with file stats
@@ -58,44 +66,48 @@ export function registerHotspots(server: McpServer, repoRoot: string) {
         ];
         if (pathArg) logArgs.push(pathArg);
 
-        const { stdout } = await gitExec(logArgs, { cwd: repoRoot });
+        const { stdout } = await gitExec(logArgs, { cwd: effectiveRepo });
         if (!stdout.trim()) {
           return textResult('No commits found in the specified time range.');
         }
 
-        // Parse: group files by change frequency
+        // Parse line-by-line: git --name-only puts a blank line between
+        // the header and the filenames, so splitting on \n\n doesn't work.
         const fileStats = new Map<
           string,
           { changes: number; authors: Set<string>; lastDate: string }
         >();
-        const commits = stdout.split('\n\n').filter((c) => c.trim());
+        const allLines = stdout.split('\n');
+        const headerRe = /^([a-f0-9]+)\|(.+)\|(.+)$/;
+        let currentAuthor = '';
+        let currentDate = '';
 
-        for (const commit of commits) {
-          const lines = commit.split('\n').filter((l) => l.trim());
-          if (lines.length === 0) continue;
+        for (const raw of allLines) {
+          const line = raw.trim();
+          if (!line) continue;
 
-          const headerMatch = lines[0].match(/^([a-f0-9]+)\|(.+)\|(.+)$/);
-          if (!headerMatch) continue;
+          const headerMatch = line.match(headerRe);
+          if (headerMatch) {
+            currentAuthor = headerMatch[2];
+            currentDate = headerMatch[3];
+            continue;
+          }
 
-          const author = headerMatch[2];
-          const date = headerMatch[3];
+          // It's a filename belonging to the current commit
+          if (!currentAuthor) continue;
+          const file = line;
 
-          for (let i = 1; i < lines.length; i++) {
-            const file = lines[i].trim();
-            if (!file) continue;
-
-            const existing = fileStats.get(file);
-            if (existing) {
-              existing.changes++;
-              existing.authors.add(author);
-              if (date > existing.lastDate) existing.lastDate = date;
-            } else {
-              fileStats.set(file, {
-                changes: 1,
-                authors: new Set([author]),
-                lastDate: date,
-              });
-            }
+          const existing = fileStats.get(file);
+          if (existing) {
+            existing.changes++;
+            existing.authors.add(currentAuthor);
+            if (currentDate > existing.lastDate) existing.lastDate = currentDate;
+          } else {
+            fileStats.set(file, {
+              changes: 1,
+              authors: new Set([currentAuthor]),
+              lastDate: currentDate,
+            });
           }
         }
 

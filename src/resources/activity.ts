@@ -1,16 +1,32 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { gitExec } from '../git/executor.js';
 
-export function registerActivityResource(server: McpServer, repoRoot: string) {
+export function registerActivityResource(server: McpServer, repoRoot: string | null) {
   server.registerResource(
     'repo-activity',
     'git://repo/activity',
     {
       description:
-        'Recent activity feed: last 50 commits with stats, formatted as a readable timeline.',
+        'Recent activity feed: last 50 commits with stats, formatted as a readable timeline. ' +
+        'Returns an error message if Claude Code was not opened inside a git repository.',
       mimeType: 'text/plain',
     },
     async () => {
+      if (!repoRoot) {
+        return {
+          contents: [
+            {
+              uri: 'git://repo/activity',
+              text:
+                '[git-intel] No git repository detected.\n\n' +
+                'To use this resource, open Claude Code inside a git repository directory.\n' +
+                'Alternatively, use the git-intel tools directly with the repo_path parameter.',
+              mimeType: 'text/plain',
+            },
+          ],
+        };
+      }
+
       const { stdout } = await gitExec(
         ['log', '--max-count=50', '--format=%h|%aN|%ar|%s', '--shortstat'],
         { cwd: repoRoot },

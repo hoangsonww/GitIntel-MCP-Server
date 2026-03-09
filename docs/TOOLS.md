@@ -6,6 +6,27 @@ Every tool returns **formatted text** with tables, score bars `[█████�
 
 ---
 
+## Common Parameters
+
+All tools accept the following optional parameter in addition to their tool-specific parameters:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to the git repository to analyze. Overrides the server's default repo. **Required** if Claude Code was not opened inside a git repository. |
+
+```mermaid
+flowchart LR
+    Call["Tool called"] --> Check{"repo_path\nprovided?"}
+    Check -->|Yes| Resolve["Resolve repo_path\nvia resolveRepoRoot()"]
+    Check -->|No| Default{"Default repo\navailable?"}
+    Default -->|Yes| Use["Use default repo"]
+    Default -->|No| Error["Error: 'No repository available.\nOpen Claude Code in a git repo\nor pass repo_path.'"]
+    Resolve --> Run["Execute git analysis"]
+    Use --> Run
+```
+
+---
+
 ## Table of Contents
 
 - [hotspots](#hotspots) -- Change frequency analysis
@@ -32,6 +53,7 @@ The top 4% of files by change frequency typically contain 50%+ of bugs. Use this
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to git repo. Required if not in a git repo. |
 | `days` | integer (>0) | `90` | Number of days to look back |
 | `limit` | integer (1-100) | `20` | Max results to return |
 | `path_filter` | string (optional) | -- | Filter to files under this path (e.g. `"src/api"`) |
@@ -78,6 +100,7 @@ High churn indicates instability, unclear requirements, or code that is hard to 
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to git repo. Required if not in a git repo. |
 | `days` | integer (>0) | `90` | Number of days to look back |
 | `limit` | integer (1-100) | `20` | Max results to return |
 | `path_filter` | string (optional) | -- | Filter to files under this path |
@@ -125,6 +148,7 @@ Temporal coupling reveals hidden dependencies not visible in imports or type sig
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to git repo. Required if not in a git repo. |
 | `days` | integer (>0) | `90` | Days to look back |
 | `min_coupling` | float (0-1) | `0.5` | Minimum coupling score to report |
 | `min_commits` | integer (>0) | `3` | Minimum shared commits to report |
@@ -183,6 +207,7 @@ Find the right reviewer for a PR. Identify knowledge silos. Plan for team transi
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to git repo. Required if not in a git repo. |
 | `path` | string (**required**) | -- | File or directory path to analyze (relative to repo root) |
 | `days` | integer (>0) | `365` | Days to look back |
 
@@ -229,6 +254,7 @@ Identify files growing out of control, complexity spikes from specific commits, 
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to git repo. Required if not in a git repo. |
 | `path` | string (**required**) | -- | File path to analyze (relative to repo root) |
 | `samples` | integer (3-30) | `10` | Number of time samples |
 | `days` | integer (>0) | `180` | Days to look back |
@@ -282,6 +308,7 @@ Before merging a PR or committing changes, assess the risk profile. Combines fou
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to git repo. Required if not in a git repo. |
 | `ref_range` | string (optional) | uncommitted changes | Git ref range to assess (e.g. `"main..feature-branch"`) |
 
 ### Example Output
@@ -350,6 +377,7 @@ Generate release notes between two git refs (tags, branches, commits). Groups by
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to git repo. Required if not in a git repo. |
 | `from_ref` | string (**required**) | -- | Starting ref (tag, branch, or commit hash) |
 | `to_ref` | string | `"HEAD"` | Ending ref |
 | `group_by` | `"type"` \| `"scope"` \| `"author"` | `"type"` | How to group commits |
@@ -411,6 +439,7 @@ Understand team dynamics, identify knowledge silos, plan onboarding, and assess 
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `repo_path` | string (optional) | -- | Absolute path to git repo. Required if not in a git repo. |
 | `days` | integer (>0) | `90` | Days to look back |
 | `author` | string (optional) | -- | Filter to a specific author (partial match) |
 
@@ -498,11 +527,22 @@ When filtering to a single author (`author: "Alice"`), the output includes a det
 
 ## Resources
 
+> **Note**: Resources do not accept parameters — they use the server's default repository set at startup. If the server was started outside a git repository, resources return a guidance message instead of data. Use the tools with `repo_path` for ad-hoc analysis of any repo.
+
 ### `git://repo/summary`
 
 Repository snapshot providing high-level context.
 
-**Output example:**
+**Output when no repo is available:**
+
+```
+[git-intel] No git repository detected.
+
+To use this resource, open Claude Code inside a git repository directory.
+Alternatively, use the git-intel tools directly with the repo_path parameter.
+```
+
+**Output example (normal):**
 
 ```
 Branch: main

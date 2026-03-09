@@ -27,31 +27,34 @@ async function main() {
   // Determine repo root: use CLI arg, env var, or current directory
   const repoPath = expandHome(process.argv[2] || process.env.GIT_INTEL_REPO || process.cwd());
 
-  // Validate git installation
-  let gitVersion: string;
+  // Validate git installation (non-fatal — tools will fail individually if git is missing)
+  let gitVersion = 'unknown';
   try {
     const info = await checkGitVersion(repoPath);
     gitVersion = info.version;
-  } catch (err: unknown) {
-    process.stderr.write(
-      `[mcp-git-intel] Fatal: ${err instanceof Error ? err.message : String(err)}\n`,
-    );
-    process.exit(1);
+  } catch {
+    // Try with a safe fallback cwd for version check only
+    try {
+      const info = await checkGitVersion(homedir());
+      gitVersion = info.version;
+    } catch {
+      process.stderr.write(
+        `[mcp-git-intel] Warning: Could not detect git version. Tools will fail if git is not installed.\n`,
+      );
+    }
   }
 
-  // Resolve repo root
-  let repoRoot: string;
+  // Resolve repo root (non-fatal — server starts regardless, tools accept repo_path per-call)
+  let repoRoot: string | null = null;
   try {
     repoRoot = await resolveRepoRoot(repoPath);
-  } catch (err: unknown) {
+    process.stderr.write(`[mcp-git-intel] Git ${gitVersion} | Repo: ${repoRoot}\n`);
+  } catch {
     process.stderr.write(
-      `[mcp-git-intel] Fatal: ${err instanceof Error ? err.message : String(err)}\n` +
-        `[mcp-git-intel] Tip: Pass a repo path as the first argument, or set GIT_INTEL_REPO env var.\n`,
+      `[mcp-git-intel] Git ${gitVersion} | No git repo detected in: ${repoPath}\n` +
+        `[mcp-git-intel] Server will start anyway. Tools require repo_path parameter or open Claude Code in a git repo.\n`,
     );
-    process.exit(1);
   }
-
-  process.stderr.write(`[mcp-git-intel] Git ${gitVersion} | Repo: ${repoRoot}\n`);
 
   // Create MCP server
   const server = new McpServer(
@@ -67,7 +70,7 @@ async function main() {
     },
   );
 
-  // Register all tools
+  // Register all tools (repoRoot may be null — tools resolve per-call via repo_path param)
   registerHotspots(server, repoRoot);
   registerChurn(server, repoRoot);
   registerCoupling(server, repoRoot);
@@ -77,7 +80,7 @@ async function main() {
   registerReleaseNotes(server, repoRoot);
   registerContributorStats(server, repoRoot);
 
-  // Register resources
+  // Register resources (gracefully degrade when no repo is available)
   registerSummaryResource(server, repoRoot);
   registerActivityResource(server, repoRoot);
 
@@ -85,7 +88,14 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  process.stderr.write(`[mcp-git-intel] Server running. 8 tools, 2 resources registered.\n`);
+  if (repoRoot) {
+    process.stderr.write(`[mcp-git-intel] Server running. 8 tools, 2 resources registered.\n`);
+  } else {
+    process.stderr.write(
+      `[mcp-git-intel] Server running (no default repo). 8 tools, 2 resources registered.\n` +
+        `[mcp-git-intel] Pass repo_path to each tool call, or restart Claude Code inside a git repo.\n`,
+    );
+  }
 
   // Graceful shutdown
   const shutdown = async () => {
