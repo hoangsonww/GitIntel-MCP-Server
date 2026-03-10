@@ -123,8 +123,8 @@ This server is **not published to npm**. You must clone, build, and register it 
 ### Build from source
 
 ```bash
-git clone <this-repo-url>
-cd mcp-server
+git clone https://github.com/hoangsonww/GitIntel-MCP-Server.git
+cd GitIntel-MCP-Server
 npm install
 npm run build
 ```
