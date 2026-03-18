@@ -4,6 +4,7 @@ import { gitExec } from '../git/executor.js';
 import { validateRef } from '../git/repo.js';
 import { parseConventionalCommit } from '../git/parser.js';
 import { textResult, errorResult } from '../util/formatting.js';
+import { getEffectiveRepo } from '../util/resolve-repo.js';
 
 interface CommitEntry {
   hash: string;
@@ -19,15 +20,22 @@ interface CommitEntry {
   issueRefs: string[];
 }
 
-export function registerReleaseNotes(server: McpServer, repoRoot: string) {
+export function registerReleaseNotes(server: McpServer, repoRoot: string | null) {
   server.registerTool(
     'release_notes',
     {
       title: 'Release Notes Generator',
       description:
         'Generate structured release notes from commits between two git refs. Groups by conventional commit type, ' +
-        'extracts breaking changes, and links PR/issue references. Supports grouping by type, scope, or author.',
+        'extracts breaking changes, and links PR/issue references. Supports grouping by type, scope, or author. ' +
+        'NOTE: If the server was not started inside a git repo, you MUST provide repo_path.',
       inputSchema: z.object({
+        repo_path: z
+          .string()
+          .optional()
+          .describe(
+            'Absolute path to the git repository to analyze. Required if Claude Code was not opened in a git repo.',
+          ),
         from_ref: z.string().describe('Starting ref (tag, branch, or commit hash)'),
         to_ref: z.string().default('HEAD').describe('Ending ref (default: HEAD)'),
         group_by: z
@@ -42,14 +50,15 @@ export function registerReleaseNotes(server: McpServer, repoRoot: string) {
     },
     async (args) => {
       try {
-        const { from_ref, to_ref, group_by } = args;
+        const { repo_path, from_ref, to_ref, group_by } = args;
+        const effectiveRepo = await getEffectiveRepo(repo_path, repoRoot);
         const cleanFrom = validateRef(from_ref);
         const cleanTo = validateRef(to_ref);
         const range = `${cleanFrom}..${cleanTo}`;
 
         const { stdout } = await gitExec(
           ['log', '--format=%H|%aN|%aI|%s|%b%x00', '--no-merges', range],
-          { cwd: repoRoot },
+          { cwd: effectiveRepo },
         );
 
         if (!stdout.trim()) {

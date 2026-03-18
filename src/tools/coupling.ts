@@ -4,6 +4,7 @@ import { gitExec } from '../git/executor.js';
 import { validatePathFilter } from '../git/repo.js';
 import { textResult, errorResult, formatTable } from '../util/formatting.js';
 import { couplingScore } from '../util/scoring.js';
+import { getEffectiveRepo } from '../util/resolve-repo.js';
 
 interface CoupledPair {
   fileA: string;
@@ -15,7 +16,7 @@ interface CoupledPair {
   sampleSubjects: string[];
 }
 
-export function registerCoupling(server: McpServer, repoRoot: string) {
+export function registerCoupling(server: McpServer, repoRoot: string | null) {
   server.registerTool(
     'coupling',
     {
@@ -23,8 +24,15 @@ export function registerCoupling(server: McpServer, repoRoot: string) {
       description:
         'Find files that always change together (temporal coupling). These represent hidden dependencies ' +
         'not visible in imports or type signatures. If auth.ts and middleware.ts change together in 90% ' +
-        'of commits, refactoring one without the other will likely break things.',
+        'of commits, refactoring one without the other will likely break things. ' +
+        'NOTE: If the server was not started inside a git repo, you MUST provide repo_path.',
       inputSchema: z.object({
+        repo_path: z
+          .string()
+          .optional()
+          .describe(
+            'Absolute path to the git repository to analyze. Required if Claude Code was not opened in a git repo.',
+          ),
         days: z.number().int().positive().default(90).describe('Days to look back (default: 90)'),
         min_coupling: z
           .number()
@@ -54,12 +62,13 @@ export function registerCoupling(server: McpServer, repoRoot: string) {
     },
     async (args) => {
       try {
-        const { days, min_coupling, min_commits, limit, path_filter } = args;
+        const { repo_path, days, min_coupling, min_commits, limit, path_filter } = args;
+        const effectiveRepo = await getEffectiveRepo(repo_path, repoRoot);
         const since = `${days} days ago`;
 
         let pathArg: string | undefined;
         if (path_filter) {
-          pathArg = validatePathFilter(path_filter, repoRoot);
+          pathArg = validatePathFilter(path_filter, effectiveRepo);
         }
 
         // Get commits with their files
@@ -73,7 +82,7 @@ export function registerCoupling(server: McpServer, repoRoot: string) {
         ];
         if (pathArg) logArgs.push(pathArg);
 
-        const { stdout } = await gitExec(logArgs, { cwd: repoRoot });
+        const { stdout } = await gitExec(logArgs, { cwd: effectiveRepo });
         if (!stdout.trim()) {
           return textResult('No commits found in the specified time range.');
         }

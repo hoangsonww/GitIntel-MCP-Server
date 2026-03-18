@@ -4,6 +4,7 @@ import { gitExec } from '../git/executor.js';
 import { validatePathFilter } from '../git/repo.js';
 import { textResult, errorResult, formatTable } from '../util/formatting.js';
 import { churnRatio } from '../util/scoring.js';
+import { getEffectiveRepo } from '../util/resolve-repo.js';
 
 interface FileChurn {
   additions: number;
@@ -13,14 +14,20 @@ interface FileChurn {
   churnRatio: number;
 }
 
-export function registerChurn(server: McpServer, repoRoot: string) {
+export function registerChurn(server: McpServer, repoRoot: string | null) {
   server.registerTool(
     'churn',
     {
       title: 'Code Churn Analysis',
       description:
-        'Analyze code churn — how much code is being written and then rewritten. High churn indicates instability, unclear requirements, or code that is hard to get right. A file with 500 lines added and 400 deleted in a month is a red flag.',
+        'Analyze code churn — how much code is being written and then rewritten. High churn indicates instability, unclear requirements, or code that is hard to get right. A file with 500 lines added and 400 deleted in a month is a red flag. NOTE: If the server was not started inside a git repo, you MUST provide repo_path.',
       inputSchema: z.object({
+        repo_path: z
+          .string()
+          .optional()
+          .describe(
+            'Absolute path to the git repository to analyze. Required if Claude Code was not opened in a git repo.',
+          ),
         days: z
           .number()
           .int()
@@ -43,12 +50,13 @@ export function registerChurn(server: McpServer, repoRoot: string) {
     },
     async (args) => {
       try {
-        const { days, limit, path_filter } = args;
+        const { repo_path, days, limit, path_filter } = args;
+        const effectiveRepo = await getEffectiveRepo(repo_path, repoRoot);
         const since = `${days} days ago`;
 
         let pathArg: string | undefined;
         if (path_filter) {
-          pathArg = validatePathFilter(path_filter, repoRoot);
+          pathArg = validatePathFilter(path_filter, effectiveRepo);
         }
 
         const logArgs = [
@@ -61,7 +69,7 @@ export function registerChurn(server: McpServer, repoRoot: string) {
         ];
         if (pathArg) logArgs.push(pathArg);
 
-        const { stdout } = await gitExec(logArgs, { cwd: repoRoot });
+        const { stdout } = await gitExec(logArgs, { cwd: effectiveRepo });
         if (!stdout.trim()) {
           return textResult('No commits found in the specified time range.');
         }
