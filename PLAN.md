@@ -1,4 +1,4 @@
-# mcp-git-intel — Git Intelligence MCP Server
+# `mcp-git-intel` — Git Intelligence MCP Server Planning Document
 
 ## What This Is
 

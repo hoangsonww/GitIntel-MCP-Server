@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD Pipeline for GitIntel MCP Server
 
 "on":
   push:
