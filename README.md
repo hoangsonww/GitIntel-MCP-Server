@@ -9,7 +9,7 @@
 ![ESM](https://img.shields.io/badge/ESM-ES2022-F7DF1E?logo=javascript&logoColor=black)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-Git Intelligence MCP Server - deep repository analytics computed locally from your commit history.
+**Git Intelligence MCP Server** - deep repository analytics computed locally from your commit history.
 
 Surfaces the same insights that tools like CodeScene and GitPrime charge for: hotspots, temporal coupling, knowledge maps, churn analysis, complexity trends, risk scoring, and more. Everything runs locally. No external APIs, no data leaves your machine.
 
@@ -23,6 +23,8 @@ Claude: [calls hotspots, risk_assessment, knowledge_map in parallel, returns for
 ---
 
 ## Architecture
+
+GitIntel is a standalone MCP server that exposes a suite of tools and resources for analyzing git repositories. It communicates with any MCP client (Claude Code, Codex, etc.) over stdio using JSON-RPC.
 
 ```mermaid
 graph LR
@@ -72,6 +74,8 @@ graph TD
 | `contributor_stats` | Team dynamics, collaboration graph, knowledge silos | Workload distribution, onboarding planning |
 
 ## Resources
+
+Resources are pre-computed summaries or feeds that can be read directly without arguments. Useful for quick snapshots or embedding into prompts.
 
 | Resource URI | Description |
 |-------------|-------------|
@@ -130,6 +134,7 @@ Add to your MCP client's configuration file (e.g. `~/.claude/settings.json` for 
 }
 ```
 
+> [!TIP]
 > **Tip**: The `~` home directory expansion works in the repo path argument (e.g. `~/projects/my-repo`).
 
 ---
@@ -210,6 +215,8 @@ git-intel> read git://repo/summary        # Read a resource
 git-intel> exit
 ```
 
+This is useful for manual testing and debugging without needing to go through an AI client.
+
 ### Smoke Test
 
 `npm run smoke` connects to the server and calls every tool and every resource against the current repo, printing all results. Useful for verifying nothing is broken after changes.
@@ -218,20 +225,24 @@ git-intel> exit
 
 ## Security Model
 
-| Concern | Mitigation |
-|---------|------------|
-| Shell injection | All git commands use `execFile` (array args, no shell interpolation) |
-| Path traversal | `validatePathFilter()` blocks `..` and absolute paths |
-| Ref injection | `validateRef()` validates git refs against a strict character whitelist |
-| Write operations | Strictly read-only. No tool modifies the repository in any way |
-| Network access | No external network calls. All data is local |
-| Git safety | `GIT_TERMINAL_PROMPT=0` prevents interactive prompts; `GIT_PAGER=''` disables pagers |
-| Timeouts | 30-second default timeout on all git commands |
-| Buffer limits | 50MB max buffer to prevent memory exhaustion |
+We take security seriously. This server is designed to be safe to run on any machine with access to git repositories. Here are the key mitigations for potential attack vectors:
+
+| Concern          | Mitigation                                                                           |
+|------------------|--------------------------------------------------------------------------------------|
+| Shell injection  | All git commands use `execFile` (array args, no shell interpolation)                 |
+| Path traversal   | `validatePathFilter()` blocks `..` and absolute paths                                |
+| Ref injection    | `validateRef()` validates git refs against a strict character whitelist              |
+| Write operations | Strictly read-only. No tool modifies the repository in any way                       |
+| Network access   | No external network calls. All data is local                                         |
+| Git safety       | `GIT_TERMINAL_PROMPT=0` prevents interactive prompts; `GIT_PAGER=''` disables pagers |
+| Timeouts         | 30-second default timeout on all git commands                                        |
+| Buffer limits    | 50MB max buffer to prevent memory exhaustion                                         |
 
 ---
 
 ## Project Structure
+
+The code is organized into clear modules for git interaction, analysis tools, resources, and utilities. The entry point (`index.ts`) sets up the MCP server and registers all tools and resources.
 
 ```
 src/
@@ -263,6 +274,8 @@ src/
 
 ## Further Documentation
 
+This README provides a high-level overview. For deeper technical details, see:
+
 - **[`ARCHITECTURE.md`](ARCHITECTURE.md)** -- Deep technical architecture, design decisions, module dependencies
 - **[`docs/TOOLS.md`](docs/TOOLS.md)** -- Detailed reference for every tool (schemas, examples, interpretation)
 - **[`docs/EXAMPLES.md`](docs/EXAMPLES.md)** -- Real-world usage transcript showing a full repo analysis session
@@ -270,3 +283,7 @@ src/
 ## License
 
 MIT. See [LICENSE](LICENSE) for details.
+
+## Author
+
+Created by [Son Nguyen](https://sonnguyenhoang.com) in 2026. Contributions are welcome! See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for guidelines.
