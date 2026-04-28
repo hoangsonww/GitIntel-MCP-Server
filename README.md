@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/hoangsonww-gitintel-mcp-server-badge.png)](https://mseep.ai/app/hoangsonww-gitintel-mcp-server)
+
 # GitIntel - A Git Intelligence MCP Server for AI Agents
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)
